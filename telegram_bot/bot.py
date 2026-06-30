@@ -78,7 +78,9 @@ def create_application() -> Application:
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(
         MessageHandler(
-            supported_chats & filters.TEXT & ~filters.COMMAND,
+            supported_chats
+            & (filters.TEXT | filters.CAPTION)
+            & ~filters.COMMAND,
             handle_time_message,
         )
     )

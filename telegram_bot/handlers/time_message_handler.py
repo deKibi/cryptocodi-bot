@@ -51,10 +51,15 @@ async def handle_time_message(
     """Reply with converted times when a text message contains UTC time."""
     message = update.effective_message
 
-    if message is None or message.text is None:
+    if message is None:
         return
 
-    utc_datetime = parse_utc_time_from_text(message.text)
+    message_text = message.text or message.caption
+
+    if message_text is None:
+        return
+
+    utc_datetime = parse_utc_time_from_text(message_text)
 
     if utc_datetime is None:
         return
@@ -73,7 +78,7 @@ async def handle_time_message(
         {
             **metadata,
             "message_id": message.message_id,
-            "message_text": message.text,
+            "message_text": message_text,
             "parsed_utc_datetime": utc_datetime.isoformat(),
             "converted_times": {
                 "kyiv": f"{kyiv_datetime:%H:%M}",
