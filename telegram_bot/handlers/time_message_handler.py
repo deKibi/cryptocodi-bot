@@ -1,6 +1,7 @@
 # telegram_bot/handlers/time_message_handler.py
 
 # Standard Libraries
+import logging
 from datetime import datetime
 
 # Third-party Libraries
@@ -14,6 +15,14 @@ from time_converter.time_utils import (
     convert_utc_to_kyiv,
 )
 from time_converter.utc_time_parser import parse_utc_time_from_text
+from telegram_bot.logging_config import (
+    format_log_metadata,
+    get_update_metadata,
+    log_detected_message,
+)
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 def format_time_response(utc_datetime: datetime) -> str:
@@ -50,8 +59,40 @@ async def handle_time_message(
     if utc_datetime is None:
         return
 
+    metadata = get_update_metadata(update)
+    metadata_text = format_log_metadata(metadata)
+    kyiv_datetime = convert_utc_to_kyiv(utc_datetime)
+    central_europe_datetime = convert_utc_to_central_europe(utc_datetime)
+
+    LOGGER.info(
+        "UTC time detected: %s | %s",
+        f"{utc_datetime:%H:%M}",
+        metadata_text,
+    )
+    log_detected_message(
+        {
+            **metadata,
+            "message_id": message.message_id,
+            "message_text": message.text,
+            "parsed_utc_datetime": utc_datetime.isoformat(),
+            "converted_times": {
+                "kyiv": f"{kyiv_datetime:%H:%M}",
+                "central_europe": f"{central_europe_datetime:%H:%M}",
+                "utc": f"{utc_datetime:%H:%M}",
+            },
+        }
+    )
+
     await message.reply_text(
         text=format_time_response(utc_datetime),
         parse_mode=ParseMode.HTML,
         do_quote=True,
+    )
+
+    LOGGER.info(
+        "Time conversion reply sent: %s KYIV, %s CET, %s UTC | %s",
+        f"{kyiv_datetime:%H:%M}",
+        f"{central_europe_datetime:%H:%M}",
+        f"{utc_datetime:%H:%M}",
+        metadata_text,
     )
