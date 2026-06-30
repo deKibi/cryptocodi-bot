@@ -26,12 +26,12 @@ def format_time_response(utc_datetime: datetime) -> str:
     continuation_indent = " " * len(first_line_prefix)
 
     return (
-        "<pre>"
+        "<code>"
         f"{first_line_prefix}┬─> {kyiv_datetime:%H:%M} KIEV\n"
         f"{continuation_indent}├─> {central_europe_datetime:%H:%M} CET\n"
         f"{continuation_indent}└─> {utc_datetime:%H:%M} UTC\n\n"
         "UTC — UTC (UTC+00:00)"
-        "</pre>"
+        "</code>"
     )
 
 
