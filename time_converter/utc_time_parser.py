@@ -1,4 +1,4 @@
-# time_converter/text_time_parser.py
+# time_converter/utc_time_parser.py
 
 # Standard Libraries
 import re
