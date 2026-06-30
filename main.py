@@ -1,11 +1,8 @@
 # main.py
 
-
-def start_bot():
-    print("Hello world!")
-    pass
+# Custom Modules
+from telegram_bot.bot import run_bot
 
 
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    start_bot()
+if __name__ == "__main__":
+    run_bot()
