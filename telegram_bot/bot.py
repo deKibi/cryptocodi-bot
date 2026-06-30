@@ -49,6 +49,7 @@ def create_application() -> Application:
 def run_bot() -> None:
     """Run the Telegram bot using long polling."""
     application = create_application()
+    print("CRYPTO CODER bot started.")
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
