@@ -12,7 +12,7 @@ THOUSAND_MULTIPLIER: Final[Decimal] = Decimal("1000")
 CRYPTO_AMOUNT_PATTERN: Final[re.Pattern[str]] = re.compile(
     r"(?<![\w.,:-])(?P<amount>\d+(?:[.,]\d+)?)"
     r"(?:(?P<multiplier>k)\s+|\s*)"
-    r"(?P<ticker>[A-Za-z]{2,10})(?!\w)",
+    r"(?P<ticker>(?:(?<=\s)[A-Za-z]|[A-Za-z]{2,10}))(?!\w)",
     flags=re.IGNORECASE,
 )
 
