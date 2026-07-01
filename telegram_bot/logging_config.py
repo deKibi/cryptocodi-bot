@@ -19,8 +19,14 @@ GENERAL_LOG_PATH: Final[Path] = LOG_DIRECTORY / "bot.log"
 DETECTED_MESSAGES_LOG_PATH: Final[Path] = (
     LOG_DIRECTORY / "detected_messages.jsonl"
 )
+DETECTED_CRYPTO_MESSAGES_LOG_PATH: Final[Path] = (
+    LOG_DIRECTORY / "detected_crypto_messages.jsonl"
+)
 LOG_RETENTION_DAYS: Final[int] = 30
 DETECTED_MESSAGES_LOGGER_NAME: Final[str] = "detected_messages"
+DETECTED_CRYPTO_MESSAGES_LOGGER_NAME: Final[str] = (
+    "detected_crypto_messages"
+)
 _LOGGING_CONFIGURED = False
 
 
@@ -69,6 +75,26 @@ def configure_logging() -> None:
     detected_messages_logger.propagate = False
     detected_messages_logger.addHandler(detected_messages_handler)
 
+    detected_crypto_messages_handler = TimedRotatingFileHandler(
+        filename=DETECTED_CRYPTO_MESSAGES_LOG_PATH,
+        when="midnight",
+        backupCount=LOG_RETENTION_DAYS,
+        encoding="utf-8",
+        delay=True,
+    )
+    detected_crypto_messages_handler.setFormatter(
+        logging.Formatter("%(message)s")
+    )
+
+    detected_crypto_messages_logger = logging.getLogger(
+        DETECTED_CRYPTO_MESSAGES_LOGGER_NAME
+    )
+    detected_crypto_messages_logger.setLevel(logging.INFO)
+    detected_crypto_messages_logger.propagate = False
+    detected_crypto_messages_logger.addHandler(
+        detected_crypto_messages_handler
+    )
+
     logging.getLogger("httpx").setLevel(logging.WARNING)
     _LOGGING_CONFIGURED = True
 
@@ -107,4 +133,14 @@ def log_detected_message(message_data: dict[str, object]) -> None:
         **message_data,
     }
     logger = logging.getLogger(DETECTED_MESSAGES_LOGGER_NAME)
+    logger.info(json.dumps(record, ensure_ascii=False))
+
+
+def log_detected_crypto_message(message_data: dict[str, object]) -> None:
+    """Write one detected crypto message as a JSON Lines record."""
+    record = {
+        "logged_at": datetime.now(tz=timezone.utc).isoformat(),
+        **message_data,
+    }
+    logger = logging.getLogger(DETECTED_CRYPTO_MESSAGES_LOGGER_NAME)
     logger.info(json.dumps(record, ensure_ascii=False))
