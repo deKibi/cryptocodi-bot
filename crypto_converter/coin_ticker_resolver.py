@@ -4,7 +4,10 @@
 from typing import Final, Optional
 
 # Custom Modules
-from crypto_converter.coingecko_client import search_coins
+from crypto_converter.coingecko_client import (
+    get_coins_by_symbol,
+    search_coins,
+)
 from crypto_converter.crypto_amount_parser import parse_crypto_amount_from_text
 
 
@@ -39,6 +42,11 @@ def resolve_coin_ticker(ticker: str) -> Optional[str]:
 
     if cached_coin_id is not None:
         return cached_coin_id
+
+    for coin in get_coins_by_symbol(normalized_ticker):
+        if coin.symbol.upper() == normalized_ticker:
+            TICKER_CACHE[normalized_ticker] = coin.coin_id
+            return coin.coin_id
 
     for coin in search_coins(normalized_ticker):
         if coin.symbol.upper() == normalized_ticker:
