@@ -15,6 +15,7 @@ from telegram.ext import (
 
 # Custom Modules
 from config import TELEGRAM_BOT_TOKEN
+from telegram_bot.handlers.crypto_message_handler import handle_crypto_message
 from telegram_bot.handlers.time_message_handler import handle_time_message
 from telegram_bot.logging_config import (
     configure_logging,
@@ -83,6 +84,15 @@ def create_application() -> Application:
             & ~filters.COMMAND,
             handle_time_message,
         )
+    )
+    application.add_handler(
+        MessageHandler(
+            supported_chats
+            & (filters.TEXT | filters.CAPTION)
+            & ~filters.COMMAND,
+            handle_crypto_message,
+        ),
+        group=1,
     )
     application.add_error_handler(handle_error)
 

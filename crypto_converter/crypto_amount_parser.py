@@ -12,7 +12,8 @@ THOUSAND_MULTIPLIER: Final[Decimal] = Decimal("1000")
 CRYPTO_AMOUNT_PATTERN: Final[re.Pattern[str]] = re.compile(
     r"(?<![\w.,:-])(?P<amount>\d+(?:[.,]\d+)?)"
     r"(?:(?P<multiplier>k)\s+|\s*)"
-    r"(?P<ticker>(?:(?<=\s)[A-Za-z]|[A-Za-z]{2,10}))(?!\w)",
+    r"(?:\$)?"
+    r"(?P<ticker>(?:(?<=[\s$])[A-Za-z]|[A-Za-z]{2,10}))(?!\w)",
     flags=re.IGNORECASE,
 )
 
@@ -26,15 +27,9 @@ class ParsedCryptoAmount:
     matched_text: str
 
 
-def parse_crypto_amount_from_text(
-    text: str,
-) -> Optional[ParsedCryptoAmount]:
-    """Return the first potential cryptocurrency amount found in text."""
-    match = CRYPTO_AMOUNT_PATTERN.search(text)
-
-    if match is None:
-        return None
-
+def _parse_crypto_amount_match(
+    match: re.Match[str],
+) -> ParsedCryptoAmount:
     normalized_amount = Decimal(
         match.group("amount").replace(",", ".")
     )
@@ -47,6 +42,26 @@ def parse_crypto_amount_from_text(
         ticker=match.group("ticker").upper(),
         matched_text=match.group(0),
     )
+
+
+def parse_crypto_amount_from_text(
+    text: str,
+) -> Optional[ParsedCryptoAmount]:
+    """Return the first potential cryptocurrency amount found in text."""
+    match = CRYPTO_AMOUNT_PATTERN.search(text)
+
+    if match is None:
+        return None
+
+    return _parse_crypto_amount_match(match)
+
+
+def parse_crypto_amounts_from_text(text: str) -> list[ParsedCryptoAmount]:
+    """Return all potential cryptocurrency amounts found in text."""
+    return [
+        _parse_crypto_amount_match(match)
+        for match in CRYPTO_AMOUNT_PATTERN.finditer(text)
+    ]
 
 
 if __name__ == "__main__":

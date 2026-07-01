@@ -13,7 +13,7 @@ from crypto_converter.crypto_amount_parser import parse_crypto_amount_from_text
 
 # Coin ticker resolution
 BLOCKED_TICKERS: Final[frozenset[str]] = frozenset(
-    {"KG", "CM"}
+    {"KG", "CM", "UTC"}
 )
 KNOWN_COINS: Final[dict[str, str]] = {
     "BTC": "bitcoin",
