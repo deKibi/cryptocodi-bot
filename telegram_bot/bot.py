@@ -4,7 +4,7 @@
 import logging
 
 # Third-party Libraries
-from telegram import Update
+from telegram import BotCommand, Update
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -26,12 +26,41 @@ from telegram_bot.logging_config import (
 
 LOGGER = logging.getLogger(__name__)
 
+START_MESSAGE = """Привіт! Це @cryptocodi bot.
+
+<b>Що бот вміє зараз:</b>
+• знаходити UTC-час у повідомленнях і переводити його в Kyiv та CET (центральноєвропейський час, Vien)
+• знаходити суми криптовалют у повідомленнях і приблизно переводити їх в USD та UAH.
+
+<b>Приклади:</b>
+
+<code>10:00 UTC</code>
+<code>0.3 BNB</code>
+<code>25k USDT</code>
+
+Автор: @deKibi
+Канал: @cryptocodi
+
+<b>Донати:</b>
+EVM: <code>0x5F762ed1B0d2328A3639D609D24A67FDEf0804C6</code>
+SOL: <code>AbmqpL1WkhxfUnRza5pNcxXZHYFzTsThjY1kEZLoBBGJ</code>"""
+
+BOT_COMMANDS = [
+    BotCommand("start", "Show bot info and supported formats"),
+]
+
+
+async def setup_bot_commands(application: Application) -> None:
+    """Register Telegram command descriptions for command autocomplete."""
+    await application.bot.set_my_commands(BOT_COMMANDS)
+    LOGGER.info("Telegram bot commands registered.")
+
 
 async def start_command(
     update: Update,
     _context: ContextTypes.DEFAULT_TYPE,
 ) -> None:
-    """Explain the supported UTC time formats to the user."""
+    """Send the bot start message with supported formats and project links."""
     message = update.effective_message
     metadata = get_update_metadata(update)
 
@@ -43,9 +72,7 @@ async def start_command(
     if message is None:
         return
 
-    await message.reply_text(
-        "Надішліть час у форматі 10:00 UTC, 10:00UTC або 10 UTC."
-    )
+    await message.reply_text(START_MESSAGE, parse_mode="HTML")
 
 
 async def handle_error(
@@ -73,7 +100,12 @@ async def handle_error(
 
 def create_application() -> Application:
     """Create and configure the Telegram bot application."""
-    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+    application = (
+        Application.builder()
+        .token(TELEGRAM_BOT_TOKEN)
+        .post_init(setup_bot_commands)
+        .build()
+    )
     supported_chats = filters.ChatType.PRIVATE | filters.ChatType.GROUPS
 
     application.add_handler(CommandHandler("start", start_command))
