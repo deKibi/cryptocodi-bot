@@ -61,9 +61,6 @@ def get_optional_int_env(variable_name: str) -> Optional[int]:
 
     normalized_value = value.strip()
 
-    if normalized_value.lower() == "todo":
-        return None
-
     try:
         return int(normalized_value)
     except ValueError as error:
