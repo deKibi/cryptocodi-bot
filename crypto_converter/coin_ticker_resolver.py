@@ -4,10 +4,7 @@
 from typing import Final, Optional
 
 # Custom Modules
-from crypto_converter.coingecko_client import (
-    get_coin_unit_price,
-    search_coins,
-)
+from crypto_converter.coingecko_client import search_coins
 from crypto_converter.crypto_amount_parser import parse_crypto_amount_from_text
 
 
@@ -20,6 +17,7 @@ KNOWN_COINS: Final[dict[str, str]] = {
     "ETH": "ethereum",
     "BNB": "binancecoin",
     "SOL": "solana",
+    "USD": "tether",
     "USDT": "tether",
 }
 TICKER_CACHE: dict[str, str] = {}
@@ -51,6 +49,8 @@ def resolve_coin_ticker(ticker: str) -> Optional[str]:
 
 
 if __name__ == "__main__":
+    from crypto_converter.crypto_price_converter import convert_crypto_to_fiat
+
     while True:
         input_text = input("Enter text (enter q to exit): ")
 
@@ -64,19 +64,18 @@ if __name__ == "__main__":
             print("Crypto amount not found.\n")
             continue
 
-        coin_id = resolve_coin_ticker(parsed_crypto_amount.ticker)
+        conversion = convert_crypto_to_fiat(
+            amount=parsed_crypto_amount.amount,
+            ticker=parsed_crypto_amount.ticker,
+        )
 
-        if coin_id is None:
+        if conversion is None:
             print(f"Coin not found: {parsed_crypto_amount.ticker}\n")
             continue
 
-        unit_price = get_coin_unit_price(coin_id)
-        total_usd = parsed_crypto_amount.amount * unit_price.usd
-        total_uah = parsed_crypto_amount.amount * unit_price.uah
-
-        print("Amount:", parsed_crypto_amount.amount)
-        print("Ticker:", parsed_crypto_amount.ticker)
+        print("Amount:", conversion.amount)
+        print("Ticker:", conversion.ticker)
         print("Matched text:", parsed_crypto_amount.matched_text)
-        print("CoinGecko ID:", coin_id)
-        print("Total USD:", total_usd)
-        print(f"Total UAH: {total_uah}\n")
+        print("CoinGecko ID:", conversion.coin_id)
+        print("Total USD:", conversion.total_usd)
+        print(f"Total UAH: {conversion.total_uah}\n")
