@@ -3,7 +3,7 @@
 # Standard Libraries
 from datetime import date, datetime, timezone
 from threading import Lock
-from typing import Optional
+from typing import Final, Optional
 
 # Custom Modules
 from config import (
@@ -14,6 +14,11 @@ from config import (
     PRIORITY_USER_CONVERT_LIMIT,
     PRIORITY_USER_ID,
 )
+
+
+# Conversion quota units
+FULL_CONVERSION_UNITS: Final[int] = 2
+CONVERSION_ATTEMPT_UNITS: Final[int] = 1
 
 
 class CoinGeckoDailyRequestLimitExceeded(RuntimeError):
@@ -111,6 +116,42 @@ class CryptoUsageLimiter:
         chat_id: Optional[int] = None,
     ) -> bool:
         """Reserve one daily conversion for the applicable usage scope."""
+        return self._try_acquire_conversion_units(
+            user_id=user_id,
+            chat_id=chat_id,
+            units=FULL_CONVERSION_UNITS,
+        )
+
+    def try_acquire_conversion_attempt(
+        self,
+        user_id: Optional[int],
+        chat_id: Optional[int] = None,
+    ) -> bool:
+        """Reserve half a conversion before resolving a ticker."""
+        return self._try_acquire_conversion_units(
+            user_id=user_id,
+            chat_id=chat_id,
+            units=CONVERSION_ATTEMPT_UNITS,
+        )
+
+    def try_complete_conversion(
+        self,
+        user_id: Optional[int],
+        chat_id: Optional[int] = None,
+    ) -> bool:
+        """Reserve the second half after a successful ticker resolution."""
+        return self._try_acquire_conversion_units(
+            user_id=user_id,
+            chat_id=chat_id,
+            units=CONVERSION_ATTEMPT_UNITS,
+        )
+
+    def _try_acquire_conversion_units(
+        self,
+        user_id: Optional[int],
+        chat_id: Optional[int],
+        units: int,
+    ) -> bool:
         conversion_scope, conversion_limit = self._get_conversion_scope(
             user_id=user_id,
             chat_id=chat_id,
@@ -125,11 +166,16 @@ class CryptoUsageLimiter:
                 conversion_scope,
                 0,
             )
+            conversion_limit_units = (
+                conversion_limit * FULL_CONVERSION_UNITS
+            )
 
-            if conversion_count >= conversion_limit:
+            if conversion_count + units > conversion_limit_units:
                 return False
 
-            self._conversion_counts[conversion_scope] = conversion_count + 1
+            self._conversion_counts[conversion_scope] = (
+                conversion_count + units
+            )
             return True
 
     def release_user_conversion(
@@ -138,6 +184,30 @@ class CryptoUsageLimiter:
         chat_id: Optional[int] = None,
     ) -> None:
         """Release a reserved conversion that did not produce a result."""
+        self._release_conversion_units(
+            user_id=user_id,
+            chat_id=chat_id,
+            units=FULL_CONVERSION_UNITS,
+        )
+
+    def release_conversion_attempt(
+        self,
+        user_id: Optional[int],
+        chat_id: Optional[int] = None,
+    ) -> None:
+        """Release a half-conversion reservation after an API failure."""
+        self._release_conversion_units(
+            user_id=user_id,
+            chat_id=chat_id,
+            units=CONVERSION_ATTEMPT_UNITS,
+        )
+
+    def _release_conversion_units(
+        self,
+        user_id: Optional[int],
+        chat_id: Optional[int],
+        units: int,
+    ) -> None:
         conversion_scope, conversion_limit = self._get_conversion_scope(
             user_id=user_id,
             chat_id=chat_id,
@@ -153,11 +223,13 @@ class CryptoUsageLimiter:
                 0,
             )
 
-            if conversion_count <= 1:
+            if conversion_count <= units:
                 self._conversion_counts.pop(conversion_scope, None)
                 return
 
-            self._conversion_counts[conversion_scope] = conversion_count - 1
+            self._conversion_counts[conversion_scope] = (
+                conversion_count - units
+            )
 
     def acquire_coingecko_request(self) -> None:
         """Reserve one global CoinGecko request or raise at the daily limit."""
