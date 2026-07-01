@@ -20,6 +20,9 @@ COINGECKO_SIMPLE_PRICE_URL: Final[str] = (
 COINGECKO_SEARCH_URL: Final[str] = (
     "https://api.coingecko.com/api/v3/search"
 )
+COINGECKO_MARKETS_URL: Final[str] = (
+    "https://api.coingecko.com/api/v3/coins/markets"
+)
 REQUEST_TIMEOUT_SECONDS: Final[int] = 10
 
 
@@ -103,28 +106,7 @@ def _get_response_data(
         raise CoinGeckoAPIError("CoinGecko returned invalid JSON") from error
 
 
-def search_coins(query: str) -> list[CoinGeckoSearchCoin]:
-    """Search CoinGecko coins ordered by market capitalization."""
-    normalized_query = query.strip()
-
-    if not normalized_query:
-        raise ValueError("query must not be empty")
-
-    response_data = _get_response_data(
-        url=COINGECKO_SEARCH_URL,
-        params={"query": normalized_query},
-    )
-
-    if not isinstance(response_data, dict):
-        raise CoinGeckoAPIError("CoinGecko returned an unexpected response")
-
-    coins_data = response_data.get("coins")
-
-    if not isinstance(coins_data, list):
-        raise CoinGeckoAPIError(
-            "CoinGecko response does not contain a valid coins list"
-        )
-
+def _parse_coins(coins_data: list[object]) -> list[CoinGeckoSearchCoin]:
     coins: list[CoinGeckoSearchCoin] = []
 
     for coin_data in coins_data:
@@ -147,6 +129,57 @@ def search_coins(query: str) -> list[CoinGeckoSearchCoin]:
         )
 
     return coins
+
+
+def get_coins_by_symbol(symbol: str) -> list[CoinGeckoSearchCoin]:
+    """Return exact-symbol coins ordered by market capitalization."""
+    normalized_symbol = symbol.strip().lower()
+
+    if not normalized_symbol:
+        raise ValueError("symbol must not be empty")
+
+    response_data = _get_response_data(
+        url=COINGECKO_MARKETS_URL,
+        params={
+            "vs_currency": "usd",
+            "symbols": normalized_symbol,
+            "include_tokens": "all",
+            "order": "market_cap_desc",
+            "per_page": "50",
+            "page": "1",
+            "sparkline": "false",
+        },
+    )
+
+    if not isinstance(response_data, list):
+        raise CoinGeckoAPIError("CoinGecko returned an unexpected response")
+
+    return _parse_coins(response_data)
+
+
+def search_coins(query: str) -> list[CoinGeckoSearchCoin]:
+    """Search CoinGecko coins ordered by market capitalization."""
+    normalized_query = query.strip()
+
+    if not normalized_query:
+        raise ValueError("query must not be empty")
+
+    response_data = _get_response_data(
+        url=COINGECKO_SEARCH_URL,
+        params={"query": normalized_query},
+    )
+
+    if not isinstance(response_data, dict):
+        raise CoinGeckoAPIError("CoinGecko returned an unexpected response")
+
+    coins_data = response_data.get("coins")
+
+    if not isinstance(coins_data, list):
+        raise CoinGeckoAPIError(
+            "CoinGecko response does not contain a valid coins list"
+        )
+
+    return _parse_coins(coins_data)
 
 
 def get_coin_unit_price(coin_id: str) -> CoinGeckoUnitPrice:
