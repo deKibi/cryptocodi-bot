@@ -69,21 +69,35 @@ class CryptoUsageLimiter:
         if (
             chat_id is not None
             and chat_id == self._priority_group_id
-            and self._priority_group_conversion_limit is not None
         ):
+            priority_group_limit = (
+                self._priority_group_conversion_limit
+                or self._user_conversion_limit
+            )
+
             return (
                 ("group", chat_id),
-                self._priority_group_conversion_limit,
+                max(
+                    self._user_conversion_limit,
+                    priority_group_limit,
+                ),
             )
 
         if (
             user_id is not None
             and user_id == self._priority_user_id
-            and self._priority_user_conversion_limit is not None
         ):
+            priority_user_limit = (
+                self._priority_user_conversion_limit
+                or self._user_conversion_limit
+            )
+
             return (
                 ("user", user_id),
-                self._priority_user_conversion_limit,
+                max(
+                    self._user_conversion_limit,
+                    priority_user_limit,
+                ),
             )
 
         if user_id is None:

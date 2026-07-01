@@ -87,7 +87,7 @@ def get_optional_positive_int_env(variable_name: str) -> Optional[int]:
     return parsed_value
 
 
-def _warn_if_priority_id_missing(
+def _warn_if_priority_config_incomplete(
     priority_name: str,
     priority_id: Optional[int],
     priority_limit: Optional[int],
@@ -96,6 +96,12 @@ def _warn_if_priority_id_missing(
         LOGGER.warning(
             "%s priority conversion limit is configured without an ID; "
             "the priority limit is disabled.",
+            priority_name,
+        )
+    elif priority_id is not None and priority_limit is None:
+        LOGGER.warning(
+            "%s priority ID is configured without a conversion limit; "
+            "the standard conversion limit will be used.",
             priority_name,
         )
 
@@ -143,12 +149,12 @@ PRIORITY_USER_CONVERT_LIMIT: Final[Optional[int]] = (
     )
 )
 
-_warn_if_priority_id_missing(
+_warn_if_priority_config_incomplete(
     priority_name="Group",
     priority_id=PRIORITY_GROUP_ID,
     priority_limit=PRIORITY_GROUP_CONVERT_LIMIT,
 )
-_warn_if_priority_id_missing(
+_warn_if_priority_config_incomplete(
     priority_name="User",
     priority_id=PRIORITY_USER_ID,
     priority_limit=PRIORITY_USER_CONVERT_LIMIT,
