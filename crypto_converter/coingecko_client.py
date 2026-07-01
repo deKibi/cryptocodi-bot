@@ -5,9 +5,9 @@ import json
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from typing import Final
-from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode
-from urllib.request import Request, urlopen
+
+# Third-party Libraries
+import httpx
 
 # Custom Modules
 from config import COINGECKO_API_KEY
@@ -63,40 +63,36 @@ def get_coin_unit_price(coin_id: str) -> CoinGeckoUnitPrice:
     if not normalized_coin_id:
         raise ValueError("coin_id must not be empty")
 
-    query = urlencode(
-        {
-            "ids": normalized_coin_id,
-            "vs_currencies": "usd,uah",
-        }
-    )
-    request = Request(
-        url=f"{COINGECKO_SIMPLE_PRICE_URL}?{query}",
-        headers={
-            "Accept": "application/json",
-            "User-Agent": "cryptocodi-bot/1.0",
-            "x-cg-demo-api-key": COINGECKO_API_KEY,
-        },
-        method="GET",
-    )
-
     try:
-        with urlopen(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
-            status_code = response.status
-            response_body = response.read().decode("utf-8")
-    except HTTPError as error:
+        response = httpx.get(
+            url=COINGECKO_SIMPLE_PRICE_URL,
+            params={
+                "ids": normalized_coin_id,
+                "vs_currencies": "usd,uah",
+            },
+            headers={
+                "Accept": "application/json",
+                "User-Agent": "cryptocodi-bot/1.0",
+                "x-cg-demo-api-key": COINGECKO_API_KEY,
+            },
+            timeout=REQUEST_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+    except httpx.HTTPStatusError as error:
+        if error.response.status_code == 401:
+            raise CoinGeckoAPIError(
+                "CoinGecko API authentication failed"
+            ) from error
+
         raise CoinGeckoAPIError(
-            f"CoinGecko API request failed with HTTP {error.code}"
+            "CoinGecko API request failed with HTTP "
+            f"{error.response.status_code}"
         ) from error
-    except (TimeoutError, URLError) as error:
+    except httpx.RequestError as error:
         raise CoinGeckoAPIError("CoinGecko API request failed") from error
 
-    if status_code != 200:
-        raise CoinGeckoAPIError(
-            f"CoinGecko API request failed with HTTP {status_code}"
-        )
-
     try:
-        response_data = json.loads(response_body, parse_float=Decimal)
+        response_data = json.loads(response.text, parse_float=Decimal)
     except (json.JSONDecodeError, InvalidOperation) as error:
         raise CoinGeckoAPIError("CoinGecko returned invalid JSON") from error
 
