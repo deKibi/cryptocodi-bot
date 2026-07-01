@@ -8,9 +8,11 @@ from typing import Final, Optional
 
 
 # Crypto amount pattern
+THOUSAND_MULTIPLIER: Final[Decimal] = Decimal("1000")
 CRYPTO_AMOUNT_PATTERN: Final[re.Pattern[str]] = re.compile(
     r"(?<![\w.,:-])(?P<amount>\d+(?:[.,]\d+)?)"
-    r"\s*(?P<ticker>[A-Za-z]{2,10})(?!\w)",
+    r"(?:(?P<multiplier>k)\s+|\s*)"
+    r"(?P<ticker>[A-Za-z]{2,10})(?!\w)",
     flags=re.IGNORECASE,
 )
 
@@ -33,10 +35,15 @@ def parse_crypto_amount_from_text(
     if match is None:
         return None
 
-    normalized_amount = match.group("amount").replace(",", ".")
+    normalized_amount = Decimal(
+        match.group("amount").replace(",", ".")
+    )
+
+    if match.group("multiplier") is not None:
+        normalized_amount *= THOUSAND_MULTIPLIER
 
     return ParsedCryptoAmount(
-        amount=Decimal(normalized_amount),
+        amount=normalized_amount,
         ticker=match.group("ticker").upper(),
         matched_text=match.group(0),
     )
