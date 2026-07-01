@@ -26,20 +26,24 @@ from telegram_bot.logging_config import (
 
 LOGGER = logging.getLogger(__name__)
 
-START_MESSAGE = """cryptocodi
+START_MESSAGE = """Привіт! Це @cryptocodi bot.
 
-Бот вміє:
-• UTC time converter: знаходить 10:00 UTC / 10:00UTC / 10 UTC і показує час у Kyiv, CET, UTC.
-• Crypto converter: знаходить 0.3 BNB / 25k USDT / 3 $BNB і показує приблизну суму в USD та UAH.
+<b>Що бот вміє зараз:</b>
+• знаходити UTC-час у повідомленнях і переводити його в Kyiv та CET (центральноєвропейський час, Vien)
+• знаходити суми криптовалют у повідомленнях і приблизно переводити їх в USD та UAH.
 
-Працює в приватних повідомленнях і групах.
+<b>Приклади:</b>
+
+<code>10:00 UTC</code>
+<code>0.3 BNB</code>
+<code>25k USDT</code>
 
 Автор: @deKibi
 Канал: @cryptocodi
 
-Donations:
-EVM: 0x5F762ed1B0d2328A3639D609D24A67FDEf0804C6
-SOL: AbmqpL1WkhxfUnRza5pNcxXZHYFzTsThjY1kEZLoBBGJ"""
+<b>Донати:</b>
+EVM: <code>0x5F762ed1B0d2328A3639D609D24A67FDEf0804C6</code>
+SOL: <code>AbmqpL1WkhxfUnRza5pNcxXZHYFzTsThjY1kEZLoBBGJ</code>"""
 
 BOT_COMMANDS = [
     BotCommand("start", "Show bot info and supported formats"),
@@ -68,7 +72,7 @@ async def start_command(
     if message is None:
         return
 
-    await message.reply_text(START_MESSAGE)
+    await message.reply_text(START_MESSAGE, parse_mode="HTML")
 
 
 async def handle_error(
