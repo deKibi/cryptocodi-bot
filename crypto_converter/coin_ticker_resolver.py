@@ -4,7 +4,11 @@
 from typing import Final, Optional
 
 # Custom Modules
-from crypto_converter.coingecko_client import search_coins
+from crypto_converter.coingecko_client import (
+    get_coin_unit_price,
+    search_coins,
+)
+from crypto_converter.crypto_amount_parser import parse_crypto_amount_from_text
 
 
 # Coin ticker resolution
@@ -44,3 +48,35 @@ def resolve_coin_ticker(ticker: str) -> Optional[str]:
             return coin.coin_id
 
     return None
+
+
+if __name__ == "__main__":
+    while True:
+        input_text = input("Enter text (enter q to exit): ")
+
+        if input_text.lower() in ("quit", "q", "exit", "leave"):
+            print("Goodbye!")
+            break
+
+        parsed_crypto_amount = parse_crypto_amount_from_text(input_text)
+
+        if parsed_crypto_amount is None:
+            print("Crypto amount not found.\n")
+            continue
+
+        coin_id = resolve_coin_ticker(parsed_crypto_amount.ticker)
+
+        if coin_id is None:
+            print(f"Coin not found: {parsed_crypto_amount.ticker}\n")
+            continue
+
+        unit_price = get_coin_unit_price(coin_id)
+        total_usd = parsed_crypto_amount.amount * unit_price.usd
+        total_uah = parsed_crypto_amount.amount * unit_price.uah
+
+        print("Amount:", parsed_crypto_amount.amount)
+        print("Ticker:", parsed_crypto_amount.ticker)
+        print("Matched text:", parsed_crypto_amount.matched_text)
+        print("CoinGecko ID:", coin_id)
+        print("Total USD:", total_usd)
+        print(f"Total UAH: {total_uah}\n")
