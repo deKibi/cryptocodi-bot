@@ -53,12 +53,17 @@ def parse_crypto_amount_from_text(
 
 
 if __name__ == "__main__":
-    input_text = input("Enter text: ")
-    parsed_crypto_amount = parse_crypto_amount_from_text(input_text)
+    while True:
+        input_text = input("Enter text (enter q to exit): ")
+        parsed_crypto_amount = parse_crypto_amount_from_text(input_text)
 
-    if parsed_crypto_amount is None:
-        print("Crypto amount not found.")
-    else:
-        print("Amount:", parsed_crypto_amount.amount)
-        print("Ticker:", parsed_crypto_amount.ticker)
-        print("Matched text:", parsed_crypto_amount.matched_text)
+        if input_text in ["quit", "q", "exit", "leave"]:
+            print("Goodbye!")
+            break
+
+        if parsed_crypto_amount is None:
+            print("Crypto amount not found.")
+        else:
+            print("Amount:", parsed_crypto_amount.amount)
+            print("Ticker:", parsed_crypto_amount.ticker)
+            print(f"Matched text: {parsed_crypto_amount.matched_text}\n")
