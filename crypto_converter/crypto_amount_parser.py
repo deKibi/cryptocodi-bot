@@ -7,20 +7,10 @@ from decimal import Decimal
 from typing import Final, Optional
 
 
-# Supported tickers
-SUPPORTED_TICKERS: Final[tuple[str, ...]] = (
-    "BTC",
-    "ETH",
-    "BNB",
-    "SOL",
-    "USDT",
-)
-TICKER_PATTERN: Final[str] = "|".join(
-    re.escape(ticker) for ticker in SUPPORTED_TICKERS
-)
+# Crypto amount pattern
 CRYPTO_AMOUNT_PATTERN: Final[re.Pattern[str]] = re.compile(
-    rf"(?<![\w.,-])(?P<amount>\d+(?:[.,]\d+)?)"
-    rf"\s*(?P<ticker>{TICKER_PATTERN})(?!\w)",
+    r"(?<![\w.,:-])(?P<amount>\d+(?:[.,]\d+)?)"
+    r"\s*(?P<ticker>[A-Za-z]{2,10})(?!\w)",
     flags=re.IGNORECASE,
 )
 
@@ -37,7 +27,7 @@ class ParsedCryptoAmount:
 def parse_crypto_amount_from_text(
     text: str,
 ) -> Optional[ParsedCryptoAmount]:
-    """Return the first supported cryptocurrency amount found in text."""
+    """Return the first potential cryptocurrency amount found in text."""
     match = CRYPTO_AMOUNT_PATTERN.search(text)
 
     if match is None:

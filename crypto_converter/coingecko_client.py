@@ -17,6 +17,9 @@ from config import COINGECKO_API_KEY
 COINGECKO_SIMPLE_PRICE_URL: Final[str] = (
     "https://api.coingecko.com/api/v3/simple/price"
 )
+COINGECKO_SEARCH_URL: Final[str] = (
+    "https://api.coingecko.com/api/v3/search"
+)
 REQUEST_TIMEOUT_SECONDS: Final[int] = 10
 
 
@@ -27,6 +30,15 @@ class CoinGeckoUnitPrice:
     coin_id: str
     usd: Decimal
     uah: Decimal
+
+
+@dataclass(frozen=True)
+class CoinGeckoSearchCoin:
+    """Represent a coin returned by CoinGecko search."""
+
+    coin_id: str
+    symbol: str
+    name: str
 
 
 class CoinGeckoAPIError(RuntimeError):
@@ -56,20 +68,14 @@ def _parse_price(coin_data: dict[str, object], currency: str) -> Decimal:
     return price
 
 
-def get_coin_unit_price(coin_id: str) -> CoinGeckoUnitPrice:
-    """Fetch the unit price of a CoinGecko coin in USD and UAH."""
-    normalized_coin_id = coin_id.strip().lower()
-
-    if not normalized_coin_id:
-        raise ValueError("coin_id must not be empty")
-
+def _get_response_data(
+    url: str,
+    params: dict[str, str],
+) -> object:
     try:
         response = httpx.get(
-            url=COINGECKO_SIMPLE_PRICE_URL,
-            params={
-                "ids": normalized_coin_id,
-                "vs_currencies": "usd,uah",
-            },
+            url=url,
+            params=params,
             headers={
                 "Accept": "application/json",
                 "User-Agent": "cryptocodi-bot/1.0",
@@ -92,9 +98,71 @@ def get_coin_unit_price(coin_id: str) -> CoinGeckoUnitPrice:
         raise CoinGeckoAPIError("CoinGecko API request failed") from error
 
     try:
-        response_data = json.loads(response.text, parse_float=Decimal)
+        return json.loads(response.text, parse_float=Decimal)
     except (json.JSONDecodeError, InvalidOperation) as error:
         raise CoinGeckoAPIError("CoinGecko returned invalid JSON") from error
+
+
+def search_coins(query: str) -> list[CoinGeckoSearchCoin]:
+    """Search CoinGecko coins ordered by market capitalization."""
+    normalized_query = query.strip()
+
+    if not normalized_query:
+        raise ValueError("query must not be empty")
+
+    response_data = _get_response_data(
+        url=COINGECKO_SEARCH_URL,
+        params={"query": normalized_query},
+    )
+
+    if not isinstance(response_data, dict):
+        raise CoinGeckoAPIError("CoinGecko returned an unexpected response")
+
+    coins_data = response_data.get("coins")
+
+    if not isinstance(coins_data, list):
+        raise CoinGeckoAPIError(
+            "CoinGecko response does not contain a valid coins list"
+        )
+
+    coins: list[CoinGeckoSearchCoin] = []
+
+    for coin_data in coins_data:
+        if not isinstance(coin_data, dict):
+            continue
+
+        coin_id = coin_data.get("id")
+        symbol = coin_data.get("symbol")
+        name = coin_data.get("name")
+
+        if not all(isinstance(value, str) for value in (coin_id, symbol, name)):
+            continue
+
+        coins.append(
+            CoinGeckoSearchCoin(
+                coin_id=coin_id,
+                symbol=symbol,
+                name=name,
+            )
+        )
+
+    return coins
+
+
+def get_coin_unit_price(coin_id: str) -> CoinGeckoUnitPrice:
+    """Fetch the unit price of a CoinGecko coin in USD and UAH."""
+    normalized_coin_id = coin_id.strip().lower()
+
+    if not normalized_coin_id:
+        raise ValueError("coin_id must not be empty")
+
+    response_data = _get_response_data(
+        url=COINGECKO_SIMPLE_PRICE_URL,
+        params={
+            "ids": normalized_coin_id,
+            "vs_currencies": "usd,uah",
+        },
+    )
 
     if not isinstance(response_data, dict):
         raise CoinGeckoAPIError("CoinGecko returned an unexpected response")
