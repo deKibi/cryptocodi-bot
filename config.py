@@ -31,6 +31,10 @@ TELEGRAM_BOT_TOKEN: Final[str] = get_required_env(
     variable_name="TELEGRAM_BOT_TOKEN",
 )
 
+COINGECKO_API_KEY: Final[str] = get_required_env(
+    variable_name="COINGECKO_API_KEY",
+)
+
 
 if __name__ == "__main__":
-    print("Telegram bot configuration loaded successfully.")
+    print("Application configuration loaded successfully.")
