@@ -11,6 +11,7 @@ from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
 # Custom Modules
+from config import MAX_CRYPTO_PAIRS_PER_MESSAGE
 from crypto_converter.crypto_amount_parser import (
     ParsedCryptoAmount,
     parse_crypto_amounts_from_text,
@@ -18,6 +19,10 @@ from crypto_converter.crypto_amount_parser import (
 from crypto_converter.crypto_price_converter import (
     CryptoPriceConversion,
     convert_crypto_to_fiat,
+)
+from crypto_converter.usage_limiter import (
+    CoinGeckoDailyRequestLimitExceeded,
+    crypto_usage_limiter,
 )
 from telegram_bot.logging_config import (
     format_log_metadata,
@@ -86,7 +91,9 @@ async def handle_crypto_message(
     if message_text is None:
         return
 
-    parsed_crypto_amounts = parse_crypto_amounts_from_text(message_text)
+    parsed_crypto_amounts = parse_crypto_amounts_from_text(message_text)[
+        :MAX_CRYPTO_PAIRS_PER_MESSAGE
+    ]
 
     if not parsed_crypto_amounts:
         return
@@ -94,22 +101,46 @@ async def handle_crypto_message(
     converted_matches: list[
         tuple[ParsedCryptoAmount, CryptoPriceConversion]
     ] = []
+    metadata = get_update_metadata(update)
+    metadata_text = format_log_metadata(metadata)
+    user_id = metadata["user_id"]
+
+    if not isinstance(user_id, int):
+        user_id = None
 
     for parsed_crypto_amount in parsed_crypto_amounts:
-        conversion = await asyncio.to_thread(
-            convert_crypto_to_fiat,
-            parsed_crypto_amount.amount,
-            parsed_crypto_amount.ticker,
-        )
+        if not crypto_usage_limiter.try_acquire_user_conversion(user_id):
+            LOGGER.warning(
+                "Daily crypto conversion limit reached | %s",
+                metadata_text,
+            )
+            break
+
+        try:
+            conversion = await asyncio.to_thread(
+                convert_crypto_to_fiat,
+                parsed_crypto_amount.amount,
+                parsed_crypto_amount.ticker,
+            )
+        except CoinGeckoDailyRequestLimitExceeded:
+            crypto_usage_limiter.release_user_conversion(user_id)
+            LOGGER.warning(
+                "Daily CoinGecko request limit reached | %s",
+                metadata_text,
+            )
+            break
+        except Exception:
+            crypto_usage_limiter.release_user_conversion(user_id)
+            raise
 
         if conversion is not None:
             converted_matches.append((parsed_crypto_amount, conversion))
+        else:
+            crypto_usage_limiter.release_user_conversion(user_id)
 
     if not converted_matches:
         return
 
-    metadata = get_update_metadata(update)
-    metadata_text = format_log_metadata(metadata)
     matched_texts = [
         parsed_crypto_amount.matched_text
         for parsed_crypto_amount, _conversion in converted_matches

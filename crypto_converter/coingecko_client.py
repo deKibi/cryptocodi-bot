@@ -11,6 +11,7 @@ import httpx
 
 # Custom Modules
 from config import COINGECKO_API_KEY
+from crypto_converter.usage_limiter import crypto_usage_limiter
 
 
 # CoinGecko Demo API
@@ -75,6 +76,8 @@ def _get_response_data(
     url: str,
     params: dict[str, str],
 ) -> object:
+    crypto_usage_limiter.acquire_coingecko_request()
+
     try:
         response = httpx.get(
             url=url,
