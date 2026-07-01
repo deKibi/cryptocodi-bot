@@ -105,13 +105,20 @@ async def handle_crypto_message(
     metadata = get_update_metadata(update)
     metadata_text = format_log_metadata(metadata)
     user_id = metadata["user_id"]
+    chat_id = metadata["chat_id"]
     limit_reached = False
 
     if not isinstance(user_id, int):
         user_id = None
 
+    if not isinstance(chat_id, int):
+        chat_id = None
+
     for parsed_crypto_amount in parsed_crypto_amounts:
-        if not crypto_usage_limiter.try_acquire_user_conversion(user_id):
+        if not crypto_usage_limiter.try_acquire_user_conversion(
+            user_id=user_id,
+            chat_id=chat_id,
+        ):
             limit_reached = True
             LOGGER.warning(
                 "Daily crypto conversion limit reached | %s",
@@ -126,7 +133,10 @@ async def handle_crypto_message(
                 parsed_crypto_amount.ticker,
             )
         except CoinGeckoDailyRequestLimitExceeded:
-            crypto_usage_limiter.release_user_conversion(user_id)
+            crypto_usage_limiter.release_user_conversion(
+                user_id=user_id,
+                chat_id=chat_id,
+            )
             limit_reached = True
             LOGGER.warning(
                 "Daily CoinGecko request limit reached | %s",
@@ -134,13 +144,19 @@ async def handle_crypto_message(
             )
             break
         except Exception:
-            crypto_usage_limiter.release_user_conversion(user_id)
+            crypto_usage_limiter.release_user_conversion(
+                user_id=user_id,
+                chat_id=chat_id,
+            )
             raise
 
         if conversion is not None:
             converted_matches.append((parsed_crypto_amount, conversion))
         else:
-            crypto_usage_limiter.release_user_conversion(user_id)
+            crypto_usage_limiter.release_user_conversion(
+                user_id=user_id,
+                chat_id=chat_id,
+            )
 
     if converted_matches:
         matched_texts = [
