@@ -3,16 +3,11 @@
 # Standard Libraries
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Final
+from typing import Optional
 
 # Custom Modules
+from crypto_converter.coin_ticker_resolver import resolve_coin_ticker
 from crypto_converter.coingecko_client import get_coin_unit_price
-
-
-# Supported coins
-SUPPORTED_COINS: Final[dict[str, str]] = {
-    "BNB": "binancecoin",
-}
 
 
 @dataclass(frozen=True)
@@ -31,16 +26,16 @@ class CryptoPriceConversion:
 def convert_crypto_to_fiat(
     amount: Decimal,
     ticker: str,
-) -> CryptoPriceConversion:
-    """Convert a supported cryptocurrency amount to USD and UAH."""
+) -> Optional[CryptoPriceConversion]:
+    """Convert a resolved cryptocurrency amount to USD and UAH."""
     if amount <= 0:
         raise ValueError("amount must be greater than zero")
 
     normalized_ticker = ticker.strip().upper()
-    coin_id = SUPPORTED_COINS.get(normalized_ticker)
+    coin_id = resolve_coin_ticker(normalized_ticker)
 
     if coin_id is None:
-        raise ValueError(f"Unsupported cryptocurrency ticker: {ticker}")
+        return None
 
     unit_price = get_coin_unit_price(coin_id)
 
@@ -61,9 +56,12 @@ if __name__ == "__main__":
         ticker="bnb",
     )
 
-    print("Input:", conversion.amount, conversion.ticker)
-    print("CoinGecko ID:", conversion.coin_id)
-    print("Unit price USD:", conversion.unit_price_usd)
-    print("Unit price UAH:", conversion.unit_price_uah)
-    print("Total USD:", conversion.total_usd)
-    print("Total UAH:", conversion.total_uah)
+    if conversion is None:
+        print("Coin not found.")
+    else:
+        print("Input:", conversion.amount, conversion.ticker)
+        print("CoinGecko ID:", conversion.coin_id)
+        print("Unit price USD:", conversion.unit_price_usd)
+        print("Unit price UAH:", conversion.unit_price_uah)
+        print("Total USD:", conversion.total_usd)
+        print("Total UAH:", conversion.total_uah)
