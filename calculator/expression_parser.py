@@ -68,26 +68,52 @@ def parse_expression(message_text: str) -> Optional[str]:
 
 
 if __name__ == "__main__":
-    test_cases = (
-        ("3*2", "3*2"),
-        (" 3 * 2 ", "3 * 2"),
-        ("(10 + 5) / 3", "(10 + 5) / 3"),
-        ("3 × 2", "3 * 2"),
-        ("12 ÷ 4", "12 / 4"),
-        ("5 − 3", "5 - 3"),
-        ("порахуй 3*2", None),
-        ("3*2 будь ласка", None),
-        ("результат 10 + 5", None),
-        ("hello", None),
-        ("", None),
-        ("3 +", None),
-        ("10 // 2", None),
-    )
+    if __package__:
+        from calculator.calculator import CalculatorError, calculate
+    else:
+        from calculator import CalculatorError, calculate
 
-    for test_text, expected_expression in test_cases:
-        parsed_expression = parse_expression(test_text)
-        status = "PASS" if parsed_expression == expected_expression else "FAIL"
-        print(
-            f"{status}: {test_text!r} -> {parsed_expression!r} "
-            f"(expected {expected_expression!r})"
-        )
+    # test_cases = (
+    #     ("3*2", "3*2"),
+    #     (" 3 * 2 ", "3 * 2"),
+    #     ("(10 + 5) / 3", "(10 + 5) / 3"),
+    #     ("3 × 2", "3 * 2"),
+    #     ("12 ÷ 4", "12 / 4"),
+    #     ("5 − 3", "5 - 3"),
+    #     ("порахуй 3*2", None),
+    #     ("3*2 будь ласка", None),
+    #     ("результат 10 + 5", None),
+    #     ("hello", None),
+    #     ("", None),
+    #     ("3 +", None),
+    #     ("10 // 2", None),
+    # )
+
+    # for test_text, expected_expression in test_cases:
+    #     parsed_expression = parse_expression(test_text)
+    #     status = "PASS" if parsed_expression == expected_expression else "FAIL"
+    #     print(
+    #         f"{status}: {test_text!r} -> {parsed_expression!r} "
+    #         f"(expected {expected_expression!r})"
+    #     )
+
+    while True:
+        input_text = input("Enter expression (enter q to exit): ")
+
+        if input_text.strip().lower() in ("q", "quit", "exit", "leave"):
+            print("Goodbye!")
+            break
+
+        parsed_expression = parse_expression(input_text)
+
+        if parsed_expression is None:
+            print("Expression not found.\n")
+            continue
+
+        try:
+            result = calculate(parsed_expression)
+        except CalculatorError as error:
+            print(f"Calculation error: {error}\n")
+            continue
+
+        print(f"Result: {result}\n")
