@@ -2,7 +2,6 @@
 
 # Standard Libraries
 from datetime import date, datetime, timezone
-from threading import Lock
 from typing import Final, Optional
 
 # Custom Modules
@@ -14,11 +13,14 @@ from config import (
     PRIORITY_USER_CONVERT_LIMIT,
     PRIORITY_USERS_ID,
 )
+from crypto_converter.usage_limit_storage import UsageLimitStorage
 
 
 # Conversion quota units
 FULL_CONVERSION_UNITS: Final[int] = 2
 CONVERSION_ATTEMPT_UNITS: Final[int] = 1
+GLOBAL_REQUEST_COUNTER_TYPE: Final[str] = "coingecko_requests"
+GLOBAL_REQUEST_SUBJECT_ID: Final[int] = 0
 
 
 class CoinGeckoDailyRequestLimitExceeded(RuntimeError):
@@ -36,6 +38,7 @@ class CryptoUsageLimiter:
         priority_user_ids: frozenset[int] = frozenset(),
         priority_group_conversion_limit: Optional[int] = None,
         priority_user_conversion_limit: Optional[int] = None,
+        storage: Optional[UsageLimitStorage] = None,
     ) -> None:
         self._user_conversion_limit = user_conversion_limit
         self._coingecko_request_limit = coingecko_request_limit
@@ -47,24 +50,11 @@ class CryptoUsageLimiter:
         self._priority_user_conversion_limit = (
             priority_user_conversion_limit
         )
-        self._usage_date = self._get_utc_date()
-        self._conversion_counts: dict[tuple[str, int], int] = {}
-        self._coingecko_requests = 0
-        self._lock = Lock()
+        self._storage = storage if storage is not None else UsageLimitStorage()
 
     @staticmethod
     def _get_utc_date() -> date:
         return datetime.now(tz=timezone.utc).date()
-
-    def _reset_if_new_day(self) -> None:
-        current_date = self._get_utc_date()
-
-        if current_date == self._usage_date:
-            return
-
-        self._usage_date = current_date
-        self._conversion_counts.clear()
-        self._coingecko_requests = 0
 
     def _get_conversion_scope(
         self,
@@ -160,23 +150,15 @@ class CryptoUsageLimiter:
         if conversion_scope is None or conversion_limit is None:
             return True
 
-        with self._lock:
-            self._reset_if_new_day()
-            conversion_count = self._conversion_counts.get(
-                conversion_scope,
-                0,
-            )
-            conversion_limit_units = (
-                conversion_limit * FULL_CONVERSION_UNITS
-            )
+        conversion_limit_units = conversion_limit * FULL_CONVERSION_UNITS
 
-            if conversion_count + units > conversion_limit_units:
-                return False
-
-            self._conversion_counts[conversion_scope] = (
-                conversion_count + units
-            )
-            return True
+        return self._storage.try_acquire(
+            usage_date=self._get_utc_date(),
+            counter_type=conversion_scope[0],
+            subject_id=conversion_scope[1],
+            units=units,
+            limit=conversion_limit_units,
+        )
 
     def release_user_conversion(
         self,
@@ -216,32 +198,27 @@ class CryptoUsageLimiter:
         if conversion_scope is None or conversion_limit is None:
             return
 
-        with self._lock:
-            self._reset_if_new_day()
-            conversion_count = self._conversion_counts.get(
-                conversion_scope,
-                0,
-            )
-
-            if conversion_count <= units:
-                self._conversion_counts.pop(conversion_scope, None)
-                return
-
-            self._conversion_counts[conversion_scope] = (
-                conversion_count - units
-            )
+        self._storage.release(
+            usage_date=self._get_utc_date(),
+            counter_type=conversion_scope[0],
+            subject_id=conversion_scope[1],
+            units=units,
+        )
 
     def acquire_coingecko_request(self) -> None:
         """Reserve one global CoinGecko request or raise at the daily limit."""
-        with self._lock:
-            self._reset_if_new_day()
+        request_acquired = self._storage.try_acquire(
+            usage_date=self._get_utc_date(),
+            counter_type=GLOBAL_REQUEST_COUNTER_TYPE,
+            subject_id=GLOBAL_REQUEST_SUBJECT_ID,
+            units=1,
+            limit=self._coingecko_request_limit,
+        )
 
-            if self._coingecko_requests >= self._coingecko_request_limit:
-                raise CoinGeckoDailyRequestLimitExceeded(
-                    "Daily CoinGecko request limit reached"
-                )
-
-            self._coingecko_requests += 1
+        if not request_acquired:
+            raise CoinGeckoDailyRequestLimitExceeded(
+                "Daily CoinGecko request limit reached"
+            )
 
 
 crypto_usage_limiter = CryptoUsageLimiter(

@@ -77,3 +77,6 @@ temp/
 .phpserver/
 logs/
 sessions/
+
+# Python application data
+/data/rate_limits.sqlite3*
