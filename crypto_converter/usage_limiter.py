@@ -10,7 +10,7 @@ from config import (
     COINGECKO_REQUESTS_PER_DAY,
     CRYPTO_CONVERSIONS_PER_USER_PER_DAY,
     PRIORITY_GROUP_CONVERT_LIMIT,
-    PRIORITY_GROUP_ID,
+    PRIORITY_GROUPS_ID,
     PRIORITY_USER_CONVERT_LIMIT,
     PRIORITY_USER_ID,
 )
@@ -32,14 +32,14 @@ class CryptoUsageLimiter:
         self,
         user_conversion_limit: int,
         coingecko_request_limit: int,
-        priority_group_id: Optional[int] = None,
+        priority_group_ids: frozenset[int] = frozenset(),
         priority_user_id: Optional[int] = None,
         priority_group_conversion_limit: Optional[int] = None,
         priority_user_conversion_limit: Optional[int] = None,
     ) -> None:
         self._user_conversion_limit = user_conversion_limit
         self._coingecko_request_limit = coingecko_request_limit
-        self._priority_group_id = priority_group_id
+        self._priority_group_ids = priority_group_ids
         self._priority_user_id = priority_user_id
         self._priority_group_conversion_limit = (
             priority_group_conversion_limit
@@ -73,7 +73,7 @@ class CryptoUsageLimiter:
     ) -> tuple[Optional[tuple[str, int]], Optional[int]]:
         if (
             chat_id is not None
-            and chat_id == self._priority_group_id
+            and chat_id in self._priority_group_ids
         ):
             priority_group_limit = (
                 self._priority_group_conversion_limit
@@ -247,7 +247,7 @@ class CryptoUsageLimiter:
 crypto_usage_limiter = CryptoUsageLimiter(
     user_conversion_limit=CRYPTO_CONVERSIONS_PER_USER_PER_DAY,
     coingecko_request_limit=COINGECKO_REQUESTS_PER_DAY,
-    priority_group_id=PRIORITY_GROUP_ID,
+    priority_group_ids=PRIORITY_GROUPS_ID,
     priority_user_id=PRIORITY_USER_ID,
     priority_group_conversion_limit=PRIORITY_GROUP_CONVERT_LIMIT,
     priority_user_conversion_limit=PRIORITY_USER_CONVERT_LIMIT,

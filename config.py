@@ -69,6 +69,35 @@ def get_optional_int_env(variable_name: str) -> Optional[int]:
         ) from error
 
 
+def get_int_set_env(variable_name: str) -> frozenset[int]:
+    """Read comma-separated integers or return an empty set."""
+    value = os.getenv(variable_name)
+
+    if value is None or not value.strip():
+        return frozenset()
+
+    parsed_values: set[int] = set()
+
+    for raw_value in value.split(","):
+        normalized_value = raw_value.strip()
+
+        if not normalized_value:
+            raise ValueError(
+                f"Environment variable {variable_name} must contain "
+                "comma-separated integers"
+            )
+
+        try:
+            parsed_values.add(int(normalized_value))
+        except ValueError as error:
+            raise ValueError(
+                f"Environment variable {variable_name} must contain "
+                "comma-separated integers"
+            ) from error
+
+    return frozenset(parsed_values)
+
+
 def get_optional_positive_int_env(variable_name: str) -> Optional[int]:
     """Read an optional positive integer environment variable."""
     parsed_value = get_optional_int_env(variable_name)
@@ -86,16 +115,16 @@ def get_optional_positive_int_env(variable_name: str) -> Optional[int]:
 
 def _warn_if_priority_config_incomplete(
     priority_name: str,
-    priority_id: Optional[int],
+    priority_configured: bool,
     priority_limit: Optional[int],
 ) -> None:
-    if priority_id is None and priority_limit is not None:
+    if not priority_configured and priority_limit is not None:
         LOGGER.warning(
             "%s priority conversion limit is configured without an ID; "
             "the priority limit is disabled.",
             priority_name,
         )
-    elif priority_id is not None and priority_limit is None:
+    elif priority_configured and priority_limit is None:
         LOGGER.warning(
             "%s priority ID is configured without a conversion limit; "
             "the standard conversion limit will be used.",
@@ -126,8 +155,8 @@ MAX_CRYPTO_PAIRS_PER_MESSAGE: Final[int] = get_positive_int_env(
     default=5,
 )
 
-PRIORITY_GROUP_ID: Final[Optional[int]] = get_optional_int_env(
-    variable_name="PRIORITY_GROUP_ID",
+PRIORITY_GROUPS_ID: Final[frozenset[int]] = get_int_set_env(
+    variable_name="PRIORITY_GROUPS_ID",
 )
 
 PRIORITY_USER_ID: Final[Optional[int]] = get_optional_int_env(
@@ -148,12 +177,12 @@ PRIORITY_USER_CONVERT_LIMIT: Final[Optional[int]] = (
 
 _warn_if_priority_config_incomplete(
     priority_name="Group",
-    priority_id=PRIORITY_GROUP_ID,
+    priority_configured=bool(PRIORITY_GROUPS_ID),
     priority_limit=PRIORITY_GROUP_CONVERT_LIMIT,
 )
 _warn_if_priority_config_incomplete(
     priority_name="User",
-    priority_id=PRIORITY_USER_ID,
+    priority_configured=PRIORITY_USER_ID is not None,
     priority_limit=PRIORITY_USER_CONVERT_LIMIT,
 )
 
