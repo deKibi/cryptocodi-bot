@@ -77,7 +77,6 @@ async def handle_time_message(
     log_detected_message(
         {
             "chat_type": metadata["chat_type"],
-            "message_text": message_text,
             "parsed_utc_datetime": utc_datetime.isoformat(),
             "converted_times": {
                 "kyiv": f"{kyiv_datetime:%H:%M}",
