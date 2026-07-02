@@ -9,6 +9,7 @@ from typing import Final, Optional
 # Expression parsing
 ALTERNATIVE_OPERATORS: Final[dict[int, str]] = str.maketrans({
     "×": "*",
+    "x": "*",
     "÷": "/",
     "−": "-",
 })
@@ -78,6 +79,7 @@ if __name__ == "__main__":
     #     (" 3 * 2 ", "3 * 2"),
     #     ("(10 + 5) / 3", "(10 + 5) / 3"),
     #     ("3 × 2", "3 * 2"),
+    #     ("3x2", "3*2"),
     #     ("12 ÷ 4", "12 / 4"),
     #     ("5 − 3", "5 - 3"),
     #     ("порахуй 3*2", None),
