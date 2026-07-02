@@ -16,22 +16,24 @@ from telegram import Update
 PROJECT_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
 LOG_DIRECTORY: Final[Path] = PROJECT_ROOT / "logs"
 GENERAL_LOG_PATH: Final[Path] = LOG_DIRECTORY / "bot.log"
-DETECTED_MESSAGES_LOG_PATH: Final[Path] = (
-    LOG_DIRECTORY / "detected_messages.jsonl"
+DETECTED_TIME_CONVERSIONS_LOG_PATH: Final[Path] = (
+    LOG_DIRECTORY / "detected_time_convertions.jsonl"
 )
-DETECTED_CRYPTO_MESSAGES_LOG_PATH: Final[Path] = (
-    LOG_DIRECTORY / "detected_crypto_messages.jsonl"
+DETECTED_CRYPTO_CONVERSIONS_LOG_PATH: Final[Path] = (
+    LOG_DIRECTORY / "detected_crypto_convertions.jsonl"
 )
 LOG_RETENTION_DAYS: Final[int] = 30
-DETECTED_MESSAGES_LOGGER_NAME: Final[str] = "detected_messages"
-DETECTED_CRYPTO_MESSAGES_LOGGER_NAME: Final[str] = (
-    "detected_crypto_messages"
+DETECTED_TIME_CONVERSIONS_LOGGER_NAME: Final[str] = (
+    "detected_time_conversions"
+)
+DETECTED_CRYPTO_CONVERSIONS_LOGGER_NAME: Final[str] = (
+    "detected_crypto_conversions"
 )
 _LOGGING_CONFIGURED = False
 
 
 def configure_logging() -> None:
-    """Configure console, general file, and detected-message logging."""
+    """Configure console, general file, and conversion logging."""
     global _LOGGING_CONFIGURED
 
     if _LOGGING_CONFIGURED:
@@ -59,40 +61,44 @@ def configure_logging() -> None:
     root_logger.addHandler(console_handler)
     root_logger.addHandler(general_file_handler)
 
-    detected_messages_handler = TimedRotatingFileHandler(
-        filename=DETECTED_MESSAGES_LOG_PATH,
+    detected_time_conversions_handler = TimedRotatingFileHandler(
+        filename=DETECTED_TIME_CONVERSIONS_LOG_PATH,
         when="midnight",
         backupCount=LOG_RETENTION_DAYS,
         encoding="utf-8",
         delay=True,
     )
-    detected_messages_handler.setFormatter(logging.Formatter("%(message)s"))
-
-    detected_messages_logger = logging.getLogger(
-        DETECTED_MESSAGES_LOGGER_NAME
-    )
-    detected_messages_logger.setLevel(logging.INFO)
-    detected_messages_logger.propagate = False
-    detected_messages_logger.addHandler(detected_messages_handler)
-
-    detected_crypto_messages_handler = TimedRotatingFileHandler(
-        filename=DETECTED_CRYPTO_MESSAGES_LOG_PATH,
-        when="midnight",
-        backupCount=LOG_RETENTION_DAYS,
-        encoding="utf-8",
-        delay=True,
-    )
-    detected_crypto_messages_handler.setFormatter(
+    detected_time_conversions_handler.setFormatter(
         logging.Formatter("%(message)s")
     )
 
-    detected_crypto_messages_logger = logging.getLogger(
-        DETECTED_CRYPTO_MESSAGES_LOGGER_NAME
+    detected_time_conversions_logger = logging.getLogger(
+        DETECTED_TIME_CONVERSIONS_LOGGER_NAME
     )
-    detected_crypto_messages_logger.setLevel(logging.INFO)
-    detected_crypto_messages_logger.propagate = False
-    detected_crypto_messages_logger.addHandler(
-        detected_crypto_messages_handler
+    detected_time_conversions_logger.setLevel(logging.INFO)
+    detected_time_conversions_logger.propagate = False
+    detected_time_conversions_logger.addHandler(
+        detected_time_conversions_handler
+    )
+
+    detected_crypto_conversions_handler = TimedRotatingFileHandler(
+        filename=DETECTED_CRYPTO_CONVERSIONS_LOG_PATH,
+        when="midnight",
+        backupCount=LOG_RETENTION_DAYS,
+        encoding="utf-8",
+        delay=True,
+    )
+    detected_crypto_conversions_handler.setFormatter(
+        logging.Formatter("%(message)s")
+    )
+
+    detected_crypto_conversions_logger = logging.getLogger(
+        DETECTED_CRYPTO_CONVERSIONS_LOGGER_NAME
+    )
+    detected_crypto_conversions_logger.setLevel(logging.INFO)
+    detected_crypto_conversions_logger.propagate = False
+    detected_crypto_conversions_logger.addHandler(
+        detected_crypto_conversions_handler
     )
 
     logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -126,21 +132,21 @@ def format_log_metadata(metadata: dict[str, object]) -> str:
     )
 
 
-def log_detected_message(message_data: dict[str, object]) -> None:
-    """Write one detected UTC message as a JSON Lines record."""
+def log_detected_time_conversion(conversion_data: dict[str, object]) -> None:
+    """Write one detected time conversion as a JSON Lines record."""
     record = {
         "logged_at": datetime.now(tz=timezone.utc).isoformat(),
-        **message_data,
+        **conversion_data,
     }
-    logger = logging.getLogger(DETECTED_MESSAGES_LOGGER_NAME)
+    logger = logging.getLogger(DETECTED_TIME_CONVERSIONS_LOGGER_NAME)
     logger.info(json.dumps(record, ensure_ascii=False))
 
 
-def log_detected_crypto_message(message_data: dict[str, object]) -> None:
-    """Write one detected crypto message as a JSON Lines record."""
+def log_detected_crypto_conversion(conversion_data: dict[str, object]) -> None:
+    """Write one detected crypto conversion as a JSON Lines record."""
     record = {
         "logged_at": datetime.now(tz=timezone.utc).isoformat(),
-        **message_data,
+        **conversion_data,
     }
-    logger = logging.getLogger(DETECTED_CRYPTO_MESSAGES_LOGGER_NAME)
+    logger = logging.getLogger(DETECTED_CRYPTO_CONVERSIONS_LOGGER_NAME)
     logger.info(json.dumps(record, ensure_ascii=False))

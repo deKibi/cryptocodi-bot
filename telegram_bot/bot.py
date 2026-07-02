@@ -37,7 +37,7 @@ from telegram_bot.logging_config import (
 
 
 LOGGER = logging.getLogger(__name__)
-STARTUP_DELAY_SECONDS: Final[int] = 5
+STARTUP_DELAY_SECONDS: Final[int] = 3
 
 START_MESSAGE = """Привіт! Це @cryptocodi bot.
 
@@ -54,9 +54,7 @@ START_MESSAGE = """Привіт! Це @cryptocodi bot.
 Автор: @deKibi
 Канал: @cryptocodi
 
-<b>Донати:</b>
-EVM: <code>0x5F762ed1B0d2328A3639D609D24A67FDEf0804C6</code>
-SOL: <code>AbmqpL1WkhxfUnRza5pNcxXZHYFzTsThjY1kEZLoBBGJ</code>"""
+Вихідний код: <a href="https://github.com/deKibi/cryptocodi-bot">GitHub</a>"""
 
 BOT_COMMANDS = [
     BotCommand("start", "Show bot info and supported formats"),

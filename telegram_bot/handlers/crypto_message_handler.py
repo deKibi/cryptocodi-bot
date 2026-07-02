@@ -27,7 +27,7 @@ from crypto_converter.usage_limiter import (
 from telegram_bot.logging_config import (
     format_log_metadata,
     get_update_metadata,
-    log_detected_crypto_message,
+    log_detected_crypto_conversion,
 )
 
 
@@ -176,11 +176,9 @@ async def handle_crypto_message(
             matched_texts,
             metadata_text,
         )
-        log_detected_crypto_message(
+        log_detected_crypto_conversion(
             {
-                **metadata,
-                "message_id": message.message_id,
-                "message_text": message_text,
+                "chat_type": metadata["chat_type"],
                 "matches": [
                     {
                         "matched_text": parsed_crypto_amount.matched_text,
