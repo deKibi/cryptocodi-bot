@@ -28,7 +28,12 @@ def format_calculation_response(
     result: int | float,
 ) -> str:
     """Format a calculation expression and result for a Telegram reply."""
-    return f"<code>{html.escape(expression)} = {result}</code>"
+    compact_expression = "".join(expression.split())
+
+    return (
+        f"<b>{html.escape(compact_expression)}</b> = "
+        f"<code>{html.escape(str(result))}</code>"
+    )
 
 
 async def handle_calculator_message(
