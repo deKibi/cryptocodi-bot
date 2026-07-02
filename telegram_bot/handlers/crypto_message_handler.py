@@ -178,8 +178,7 @@ async def handle_crypto_message(
         )
         log_detected_crypto_message(
             {
-                **metadata,
-                "message_id": message.message_id,
+                "chat_type": metadata["chat_type"],
                 "message_text": message_text,
                 "matches": [
                     {
