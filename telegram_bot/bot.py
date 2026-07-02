@@ -2,6 +2,8 @@
 
 # Standard Libraries
 import logging
+import time
+from typing import Final, Optional
 
 # Third-party Libraries
 from telegram import BotCommand, Update
@@ -14,7 +16,17 @@ from telegram.ext import (
 )
 
 # Custom Modules
-from config import TELEGRAM_BOT_TOKEN
+from config import (
+    COINGECKO_REQUESTS_PER_DAY,
+    CRYPTO_CONVERSIONS_PER_USER_PER_DAY,
+    MAX_CRYPTO_PAIRS_PER_MESSAGE,
+    PRIORITY_GROUP_CONVERT_LIMIT,
+    PRIORITY_GROUPS_ID,
+    PRIORITY_USER_CONVERT_LIMIT,
+    PRIORITY_USERS_ID,
+    TELEGRAM_BOT_TOKEN,
+    log_configuration_warnings,
+)
 from telegram_bot.handlers.crypto_message_handler import handle_crypto_message
 from telegram_bot.handlers.time_message_handler import handle_time_message
 from telegram_bot.logging_config import (
@@ -25,6 +37,7 @@ from telegram_bot.logging_config import (
 
 
 LOGGER = logging.getLogger(__name__)
+STARTUP_DELAY_SECONDS: Final[int] = 5
 
 START_MESSAGE = """Привіт! Це @cryptocodi bot.
 
@@ -48,6 +61,41 @@ SOL: <code>AbmqpL1WkhxfUnRza5pNcxXZHYFzTsThjY1kEZLoBBGJ</code>"""
 BOT_COMMANDS = [
     BotCommand("start", "Show bot info and supported formats"),
 ]
+
+
+def _format_configured_ids(configured_ids: frozenset[int]) -> str:
+    if not configured_ids:
+        return "not configured"
+
+    return ", ".join(str(identifier) for identifier in sorted(configured_ids))
+
+
+def _format_optional_limit(limit: Optional[int]) -> str:
+    if limit is None:
+        return "not configured"
+
+    return str(limit)
+
+
+def log_startup_configuration() -> None:
+    """Log non-sensitive bot settings before Telegram polling starts."""
+    LOGGER.info(
+        "Startup configuration:\n"
+        "  CoinGecko requests per UTC day: %d\n"
+        "  Conversions per user per UTC day: %d\n"
+        "  Maximum crypto pairs per message: %d\n"
+        "  Priority group IDs: %s\n"
+        "  Priority group conversion limit: %s\n"
+        "  Priority user IDs: %s\n"
+        "  Priority user conversion limit: %s",
+        COINGECKO_REQUESTS_PER_DAY,
+        CRYPTO_CONVERSIONS_PER_USER_PER_DAY,
+        MAX_CRYPTO_PAIRS_PER_MESSAGE,
+        _format_configured_ids(PRIORITY_GROUPS_ID),
+        _format_optional_limit(PRIORITY_GROUP_CONVERT_LIMIT),
+        _format_configured_ids(PRIORITY_USERS_ID),
+        _format_optional_limit(PRIORITY_USER_CONVERT_LIMIT),
+    )
 
 
 async def setup_bot_commands(application: Application) -> None:
@@ -134,6 +182,20 @@ def create_application() -> Application:
 def run_bot() -> None:
     """Run the Telegram bot using long polling."""
     configure_logging()
+    LOGGER.info("Configuration loaded and validated.")
+    log_startup_configuration()
+    log_configuration_warnings()
+    LOGGER.info(
+        "Telegram polling starts in %d seconds. Press Ctrl+C to cancel.",
+        STARTUP_DELAY_SECONDS,
+    )
+
+    try:
+        time.sleep(STARTUP_DELAY_SECONDS)
+    except KeyboardInterrupt:
+        LOGGER.info("Bot startup cancelled by user.")
+        return
+
     LOGGER.info("Bot started.")
 
     try:
