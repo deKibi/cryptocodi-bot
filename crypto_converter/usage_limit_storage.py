@@ -37,20 +37,42 @@ class UsageLimitStorage:
                 """
                 CREATE TABLE IF NOT EXISTS rate_limit_usage (
                     usage_date TEXT NOT NULL,
-                    scope_type TEXT NOT NULL,
-                    scope_id INTEGER NOT NULL,
+                    counter_type TEXT NOT NULL,
+                    subject_id INTEGER NOT NULL,
                     used_units INTEGER NOT NULL CHECK (used_units >= 0),
-                    PRIMARY KEY (usage_date, scope_type, scope_id)
+                    PRIMARY KEY (usage_date, counter_type, subject_id)
                 )
                 """
             )
+            self._migrate_legacy_columns(connection)
             connection.commit()
+
+    @staticmethod
+    def _migrate_legacy_columns(connection: sqlite3.Connection) -> None:
+        columns = {
+            row[1]
+            for row in connection.execute(
+                "PRAGMA table_info(rate_limit_usage)"
+            )
+        }
+
+        if "scope_type" in columns and "counter_type" not in columns:
+            connection.execute(
+                "ALTER TABLE rate_limit_usage "
+                "RENAME COLUMN scope_type TO counter_type"
+            )
+
+        if "scope_id" in columns and "subject_id" not in columns:
+            connection.execute(
+                "ALTER TABLE rate_limit_usage "
+                "RENAME COLUMN scope_id TO subject_id"
+            )
 
     def try_acquire(
         self,
         usage_date: date,
-        scope_type: str,
-        scope_id: int,
+        counter_type: str,
+        subject_id: int,
         units: int,
         limit: int,
     ) -> bool:
@@ -61,8 +83,8 @@ class UsageLimitStorage:
         if limit <= 0:
             raise ValueError("limit must be greater than zero")
 
-        if not scope_type:
-            raise ValueError("scope_type must not be empty")
+        if not counter_type:
+            raise ValueError("counter_type must not be empty")
 
         if units > limit:
             return False
@@ -72,19 +94,19 @@ class UsageLimitStorage:
                 """
                 INSERT INTO rate_limit_usage (
                     usage_date,
-                    scope_type,
-                    scope_id,
+                    counter_type,
+                    subject_id,
                     used_units
                 )
                 VALUES (?, ?, ?, ?)
-                ON CONFLICT (usage_date, scope_type, scope_id)
+                ON CONFLICT (usage_date, counter_type, subject_id)
                 DO UPDATE SET used_units = used_units + excluded.used_units
                 WHERE used_units + excluded.used_units <= ?
                 """,
                 (
                     usage_date.isoformat(),
-                    scope_type,
-                    scope_id,
+                    counter_type,
+                    subject_id,
                     units,
                     limit,
                 ),
@@ -96,16 +118,16 @@ class UsageLimitStorage:
     def release(
         self,
         usage_date: date,
-        scope_type: str,
-        scope_id: int,
+        counter_type: str,
+        subject_id: int,
         units: int,
     ) -> None:
         """Atomically release usage units without going below zero."""
         if units <= 0:
             raise ValueError("units must be greater than zero")
 
-        if not scope_type:
-            raise ValueError("scope_type must not be empty")
+        if not counter_type:
+            raise ValueError("counter_type must not be empty")
 
         with closing(self._connect()) as connection:
             connection.execute(
@@ -113,14 +135,14 @@ class UsageLimitStorage:
                 UPDATE rate_limit_usage
                 SET used_units = MAX(used_units - ?, 0)
                 WHERE usage_date = ?
-                    AND scope_type = ?
-                    AND scope_id = ?
+                    AND counter_type = ?
+                    AND subject_id = ?
                 """,
                 (
                     units,
                     usage_date.isoformat(),
-                    scope_type,
-                    scope_id,
+                    counter_type,
+                    subject_id,
                 ),
             )
             connection.commit()

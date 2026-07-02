@@ -19,8 +19,8 @@ from crypto_converter.usage_limit_storage import UsageLimitStorage
 # Conversion quota units
 FULL_CONVERSION_UNITS: Final[int] = 2
 CONVERSION_ATTEMPT_UNITS: Final[int] = 1
-GLOBAL_REQUEST_SCOPE_TYPE: Final[str] = "coingecko_requests"
-GLOBAL_REQUEST_SCOPE_ID: Final[int] = 0
+GLOBAL_REQUEST_COUNTER_TYPE: Final[str] = "coingecko_requests"
+GLOBAL_REQUEST_SUBJECT_ID: Final[int] = 0
 
 
 class CoinGeckoDailyRequestLimitExceeded(RuntimeError):
@@ -154,8 +154,8 @@ class CryptoUsageLimiter:
 
         return self._storage.try_acquire(
             usage_date=self._get_utc_date(),
-            scope_type=conversion_scope[0],
-            scope_id=conversion_scope[1],
+            counter_type=conversion_scope[0],
+            subject_id=conversion_scope[1],
             units=units,
             limit=conversion_limit_units,
         )
@@ -200,8 +200,8 @@ class CryptoUsageLimiter:
 
         self._storage.release(
             usage_date=self._get_utc_date(),
-            scope_type=conversion_scope[0],
-            scope_id=conversion_scope[1],
+            counter_type=conversion_scope[0],
+            subject_id=conversion_scope[1],
             units=units,
         )
 
@@ -209,8 +209,8 @@ class CryptoUsageLimiter:
         """Reserve one global CoinGecko request or raise at the daily limit."""
         request_acquired = self._storage.try_acquire(
             usage_date=self._get_utc_date(),
-            scope_type=GLOBAL_REQUEST_SCOPE_TYPE,
-            scope_id=GLOBAL_REQUEST_SCOPE_ID,
+            counter_type=GLOBAL_REQUEST_COUNTER_TYPE,
+            subject_id=GLOBAL_REQUEST_SUBJECT_ID,
             units=1,
             limit=self._coingecko_request_limit,
         )
