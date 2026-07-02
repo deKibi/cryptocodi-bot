@@ -37,7 +37,7 @@ from telegram_bot.logging_config import (
 
 
 LOGGER = logging.getLogger(__name__)
-STARTUP_DELAY_SECONDS: Final[int] = 5
+STARTUP_DELAY_SECONDS: Final[int] = 3
 
 START_MESSAGE = """Привіт! Це @cryptocodi bot.
 
