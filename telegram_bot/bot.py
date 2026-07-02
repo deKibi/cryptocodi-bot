@@ -52,7 +52,9 @@ START_MESSAGE = """Привіт! Це @cryptocodi bot.
 <code>25k USDT</code>
 
 Автор: @deKibi
-Канал: @cryptocodi"""
+Канал: @cryptocodi
+
+Вихідний код: <a href="https://github.com/deKibi/cryptocodi-bot">GitHub</a>"""
 
 BOT_COMMANDS = [
     BotCommand("start", "Show bot info and supported formats"),
