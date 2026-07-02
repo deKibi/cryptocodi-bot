@@ -18,7 +18,7 @@ from time_converter.utc_time_parser import parse_utc_time_from_text
 from telegram_bot.logging_config import (
     format_log_metadata,
     get_update_metadata,
-    log_detected_message,
+    log_detected_time_conversion,
 )
 
 
@@ -74,7 +74,7 @@ async def handle_time_message(
         f"{utc_datetime:%H:%M}",
         metadata_text,
     )
-    log_detected_message(
+    log_detected_time_conversion(
         {
             "chat_type": metadata["chat_type"],
             "parsed_utc_datetime": utc_datetime.isoformat(),
