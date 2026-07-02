@@ -175,16 +175,19 @@ PRIORITY_USER_CONVERT_LIMIT: Final[Optional[int]] = (
     )
 )
 
-_warn_if_priority_config_incomplete(
-    priority_name="Group",
-    priority_configured=bool(PRIORITY_GROUPS_ID),
-    priority_limit=PRIORITY_GROUP_CONVERT_LIMIT,
-)
-_warn_if_priority_config_incomplete(
-    priority_name="User",
-    priority_configured=bool(PRIORITY_USERS_ID),
-    priority_limit=PRIORITY_USER_CONVERT_LIMIT,
-)
+
+def log_configuration_warnings() -> None:
+    """Log warnings for incomplete optional priority configuration."""
+    _warn_if_priority_config_incomplete(
+        priority_name="Group",
+        priority_configured=bool(PRIORITY_GROUPS_ID),
+        priority_limit=PRIORITY_GROUP_CONVERT_LIMIT,
+    )
+    _warn_if_priority_config_incomplete(
+        priority_name="User",
+        priority_configured=bool(PRIORITY_USERS_ID),
+        priority_limit=PRIORITY_USER_CONVERT_LIMIT,
+    )
 
 
 if __name__ == "__main__":
