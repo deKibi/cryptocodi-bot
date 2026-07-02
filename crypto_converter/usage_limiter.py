@@ -12,7 +12,7 @@ from config import (
     PRIORITY_GROUP_CONVERT_LIMIT,
     PRIORITY_GROUPS_ID,
     PRIORITY_USER_CONVERT_LIMIT,
-    PRIORITY_USER_ID,
+    PRIORITY_USERS_ID,
 )
 
 
@@ -33,14 +33,14 @@ class CryptoUsageLimiter:
         user_conversion_limit: int,
         coingecko_request_limit: int,
         priority_group_ids: frozenset[int] = frozenset(),
-        priority_user_id: Optional[int] = None,
+        priority_user_ids: frozenset[int] = frozenset(),
         priority_group_conversion_limit: Optional[int] = None,
         priority_user_conversion_limit: Optional[int] = None,
     ) -> None:
         self._user_conversion_limit = user_conversion_limit
         self._coingecko_request_limit = coingecko_request_limit
         self._priority_group_ids = priority_group_ids
-        self._priority_user_id = priority_user_id
+        self._priority_user_ids = priority_user_ids
         self._priority_group_conversion_limit = (
             priority_group_conversion_limit
         )
@@ -90,7 +90,7 @@ class CryptoUsageLimiter:
 
         if (
             user_id is not None
-            and user_id == self._priority_user_id
+            and user_id in self._priority_user_ids
         ):
             priority_user_limit = (
                 self._priority_user_conversion_limit
@@ -248,7 +248,7 @@ crypto_usage_limiter = CryptoUsageLimiter(
     user_conversion_limit=CRYPTO_CONVERSIONS_PER_USER_PER_DAY,
     coingecko_request_limit=COINGECKO_REQUESTS_PER_DAY,
     priority_group_ids=PRIORITY_GROUPS_ID,
-    priority_user_id=PRIORITY_USER_ID,
+    priority_user_ids=PRIORITY_USERS_ID,
     priority_group_conversion_limit=PRIORITY_GROUP_CONVERT_LIMIT,
     priority_user_conversion_limit=PRIORITY_USER_CONVERT_LIMIT,
 )

@@ -159,8 +159,8 @@ PRIORITY_GROUPS_ID: Final[frozenset[int]] = get_int_set_env(
     variable_name="PRIORITY_GROUPS_ID",
 )
 
-PRIORITY_USER_ID: Final[Optional[int]] = get_optional_int_env(
-    variable_name="PRIORITY_USER_ID",
+PRIORITY_USERS_ID: Final[frozenset[int]] = get_int_set_env(
+    variable_name="PRIORITY_USERS_ID",
 )
 
 PRIORITY_GROUP_CONVERT_LIMIT: Final[Optional[int]] = (
@@ -182,7 +182,7 @@ _warn_if_priority_config_incomplete(
 )
 _warn_if_priority_config_incomplete(
     priority_name="User",
-    priority_configured=PRIORITY_USER_ID is not None,
+    priority_configured=bool(PRIORITY_USERS_ID),
     priority_limit=PRIORITY_USER_CONVERT_LIMIT,
 )
 
