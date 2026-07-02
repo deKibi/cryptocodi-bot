@@ -27,6 +27,9 @@ from config import (
     TELEGRAM_BOT_TOKEN,
     log_configuration_warnings,
 )
+from telegram_bot.handlers.calculator_message_handler import (
+    handle_calculator_message,
+)
 from telegram_bot.handlers.crypto_message_handler import handle_crypto_message
 from telegram_bot.handlers.time_message_handler import handle_time_message
 from telegram_bot.logging_config import (
@@ -43,13 +46,15 @@ START_MESSAGE = """Привіт! Це @cryptocodi bot.
 
 <b>Що бот вміє зараз:</b>
 • знаходити UTC-час у повідомленнях і переводити його в Kyiv та CET (центральноєвропейський час, Vien)
-• знаходити суми криптовалют у повідомленнях і приблизно переводити їх в USD та UAH.
+• знаходити суми криптовалют у повідомленнях і приблизно переводити їх в USD та UAH
+• обчислювати прості математичні вирази.
 
 <b>Приклади:</b>
 
 <code>10:00 UTC</code>
 <code>0.3 BNB</code>
 <code>25k USDT</code>
+<code>(10 + 5) / 3</code>
 
 Автор: @deKibi
 Канал: @cryptocodi
@@ -171,6 +176,15 @@ def create_application() -> Application:
             handle_crypto_message,
         ),
         group=1,
+    )
+    application.add_handler(
+        MessageHandler(
+            supported_chats
+            & (filters.TEXT | filters.CAPTION)
+            & ~filters.COMMAND,
+            handle_calculator_message,
+        ),
+        group=2,
     )
     application.add_error_handler(handle_error)
 

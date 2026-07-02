@@ -22,6 +22,9 @@ DETECTED_TIME_CONVERSIONS_LOG_PATH: Final[Path] = (
 DETECTED_CRYPTO_CONVERSIONS_LOG_PATH: Final[Path] = (
     LOG_DIRECTORY / "detected_crypto_convertions.jsonl"
 )
+DETECTED_CALCULATIONS_LOG_PATH: Final[Path] = (
+    LOG_DIRECTORY / "detected_calculations.jsonl"
+)
 LOG_RETENTION_DAYS: Final[int] = 30
 DETECTED_TIME_CONVERSIONS_LOGGER_NAME: Final[str] = (
     "detected_time_conversions"
@@ -29,6 +32,7 @@ DETECTED_TIME_CONVERSIONS_LOGGER_NAME: Final[str] = (
 DETECTED_CRYPTO_CONVERSIONS_LOGGER_NAME: Final[str] = (
     "detected_crypto_conversions"
 )
+DETECTED_CALCULATIONS_LOGGER_NAME: Final[str] = "detected_calculations"
 _LOGGING_CONFIGURED = False
 
 
@@ -101,6 +105,26 @@ def configure_logging() -> None:
         detected_crypto_conversions_handler
     )
 
+    detected_calculations_handler = TimedRotatingFileHandler(
+        filename=DETECTED_CALCULATIONS_LOG_PATH,
+        when="midnight",
+        backupCount=LOG_RETENTION_DAYS,
+        encoding="utf-8",
+        delay=True,
+    )
+    detected_calculations_handler.setFormatter(
+        logging.Formatter("%(message)s")
+    )
+
+    detected_calculations_logger = logging.getLogger(
+        DETECTED_CALCULATIONS_LOGGER_NAME
+    )
+    detected_calculations_logger.setLevel(logging.INFO)
+    detected_calculations_logger.propagate = False
+    detected_calculations_logger.addHandler(
+        detected_calculations_handler
+    )
+
     logging.getLogger("httpx").setLevel(logging.WARNING)
     _LOGGING_CONFIGURED = True
 
@@ -149,4 +173,14 @@ def log_detected_crypto_conversion(conversion_data: dict[str, object]) -> None:
         **conversion_data,
     }
     logger = logging.getLogger(DETECTED_CRYPTO_CONVERSIONS_LOGGER_NAME)
+    logger.info(json.dumps(record, ensure_ascii=False))
+
+
+def log_detected_calculation(calculation_data: dict[str, object]) -> None:
+    """Write one detected calculation as a JSON Lines record."""
+    record = {
+        "logged_at": datetime.now(tz=timezone.utc).isoformat(),
+        **calculation_data,
+    }
+    logger = logging.getLogger(DETECTED_CALCULATIONS_LOGGER_NAME)
     logger.info(json.dumps(record, ensure_ascii=False))
