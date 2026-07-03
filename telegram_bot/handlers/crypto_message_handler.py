@@ -24,6 +24,11 @@ from crypto_converter.usage_limiter import (
     CoinGeckoDailyRequestLimitExceeded,
     crypto_usage_limiter,
 )
+from telegram_bot.state.message_signature_tracker import (
+    forget_message_signature,
+    is_message_signature_unchanged,
+    remember_message_signature,
+)
 from telegram_bot.logging_config import (
     format_log_metadata,
     get_update_metadata,
@@ -33,6 +38,7 @@ from telegram_bot.logging_config import (
 
 LOGGER = logging.getLogger(__name__)
 LIMIT_REACHED_MESSAGE = "Наразі ліміт вичерпано."
+CRYPTO_SIGNATURE_FEATURE = "crypto"
 
 
 def _format_decimal(value: Decimal) -> str:
@@ -79,7 +85,7 @@ def format_crypto_responses(
 
 async def handle_crypto_message(
     update: Update,
-    _context: ContextTypes.DEFAULT_TYPE,
+    context: ContextTypes.DEFAULT_TYPE,
 ) -> None:
     """Reply with all supported crypto amounts found in a message."""
     message = update.effective_message
@@ -95,8 +101,32 @@ async def handle_crypto_message(
     parsed_crypto_amounts = parse_crypto_amounts_from_text(message_text)[
         :MAX_CRYPTO_PAIRS_PER_MESSAGE
     ]
+    chat = update.effective_chat
+
+    if chat is None:
+        return
 
     if not parsed_crypto_amounts:
+        forget_message_signature(
+            context.bot_data,
+            CRYPTO_SIGNATURE_FEATURE,
+            chat.id,
+            message.message_id,
+        )
+        return
+
+    crypto_signature = tuple(
+        (parsed_crypto_amount.amount, parsed_crypto_amount.ticker)
+        for parsed_crypto_amount in parsed_crypto_amounts
+    )
+
+    if is_message_signature_unchanged(
+        context.bot_data,
+        CRYPTO_SIGNATURE_FEATURE,
+        chat.id,
+        message.message_id,
+        crypto_signature,
+    ):
         return
 
     converted_matches: list[
@@ -215,3 +245,11 @@ async def handle_crypto_message(
             do_quote=True,
         )
         LOGGER.info("Limit reached reply sent | %s", metadata_text)
+
+    remember_message_signature(
+        context.bot_data,
+        CRYPTO_SIGNATURE_FEATURE,
+        chat.id,
+        message.message_id,
+        crypto_signature,
+    )

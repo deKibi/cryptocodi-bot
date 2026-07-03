@@ -17,10 +17,16 @@ from telegram_bot.logging_config import (
     get_update_metadata,
     log_detected_calculation,
 )
+from telegram_bot.state.message_signature_tracker import (
+    forget_message_signature,
+    is_message_signature_unchanged,
+    remember_message_signature,
+)
 
 
 LOGGER = logging.getLogger(__name__)
 CALCULATION_ERROR_MESSAGE = "Не вдалося обчислити вираз."
+CALCULATOR_SIGNATURE_FEATURE = "calculator"
 
 
 def format_calculation_response(
@@ -38,7 +44,7 @@ def format_calculation_response(
 
 async def handle_calculator_message(
     update: Update,
-    _context: ContextTypes.DEFAULT_TYPE,
+    context: ContextTypes.DEFAULT_TYPE,
 ) -> None:
     """Reply with a result when the entire message is an expression."""
     message = update.effective_message
@@ -52,8 +58,29 @@ async def handle_calculator_message(
         return
 
     expression = parse_expression(message_text)
+    chat = update.effective_chat
+
+    if chat is None:
+        return
 
     if expression is None:
+        forget_message_signature(
+            context.bot_data,
+            CALCULATOR_SIGNATURE_FEATURE,
+            chat.id,
+            message.message_id,
+        )
+        return
+
+    expression_signature = "".join(expression.split())
+
+    if is_message_signature_unchanged(
+        context.bot_data,
+        CALCULATOR_SIGNATURE_FEATURE,
+        chat.id,
+        message.message_id,
+        expression_signature,
+    ):
         return
 
     metadata = get_update_metadata(update)
@@ -79,6 +106,13 @@ async def handle_calculator_message(
             do_quote=True,
         )
         LOGGER.info("Calculation error reply sent | %s", metadata_text)
+        remember_message_signature(
+            context.bot_data,
+            CALCULATOR_SIGNATURE_FEATURE,
+            chat.id,
+            message.message_id,
+            expression_signature,
+        )
         return
 
     log_detected_calculation(
@@ -100,4 +134,12 @@ async def handle_calculator_message(
         expression,
         result,
         metadata_text,
+    )
+
+    remember_message_signature(
+        context.bot_data,
+        CALCULATOR_SIGNATURE_FEATURE,
+        chat.id,
+        message.message_id,
+        expression_signature,
     )

@@ -15,6 +15,11 @@ from time_converter.time_utils import (
     convert_utc_to_kyiv,
 )
 from time_converter.utc_time_parser import parse_utc_time_from_text
+from telegram_bot.state.message_signature_tracker import (
+    forget_message_signature,
+    is_message_signature_unchanged,
+    remember_message_signature,
+)
 from telegram_bot.logging_config import (
     format_log_metadata,
     get_update_metadata,
@@ -23,6 +28,7 @@ from telegram_bot.logging_config import (
 
 
 LOGGER = logging.getLogger(__name__)
+TIME_SIGNATURE_FEATURE = "utc_time"
 
 
 def format_time_response(utc_datetime: datetime) -> str:
@@ -46,7 +52,7 @@ def format_time_response(utc_datetime: datetime) -> str:
 
 async def handle_time_message(
     update: Update,
-    _context: ContextTypes.DEFAULT_TYPE,
+    context: ContextTypes.DEFAULT_TYPE,
 ) -> None:
     """Reply with converted times when a text message contains UTC time."""
     message = update.effective_message
@@ -60,8 +66,29 @@ async def handle_time_message(
         return
 
     utc_datetime = parse_utc_time_from_text(message_text)
+    chat = update.effective_chat
+
+    if chat is None:
+        return
 
     if utc_datetime is None:
+        forget_message_signature(
+            context.bot_data,
+            TIME_SIGNATURE_FEATURE,
+            chat.id,
+            message.message_id,
+        )
+        return
+
+    time_signature = (utc_datetime.hour, utc_datetime.minute)
+
+    if is_message_signature_unchanged(
+        context.bot_data,
+        TIME_SIGNATURE_FEATURE,
+        chat.id,
+        message.message_id,
+        time_signature,
+    ):
         return
 
     metadata = get_update_metadata(update)
@@ -98,4 +125,12 @@ async def handle_time_message(
         f"{central_europe_datetime:%H:%M}",
         f"{utc_datetime:%H:%M}",
         metadata_text,
+    )
+
+    remember_message_signature(
+        context.bot_data,
+        TIME_SIGNATURE_FEATURE,
+        chat.id,
+        message.message_id,
+        time_signature,
     )
