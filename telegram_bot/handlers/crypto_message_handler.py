@@ -24,7 +24,7 @@ from crypto_converter.usage_limiter import (
     CoinGeckoDailyRequestLimitExceeded,
     crypto_usage_limiter,
 )
-from telegram_bot.handlers.message_signature_tracker import (
+from telegram_bot.state.message_signature_tracker import (
     forget_message_signature,
     is_message_signature_unchanged,
     remember_message_signature,

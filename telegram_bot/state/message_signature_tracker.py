@@ -1,4 +1,4 @@
-# telegram_bot/handlers/message_signature_tracker.py
+# telegram_bot/state/message_signature_tracker.py
 
 # Standard Libraries
 from collections import OrderedDict

@@ -15,7 +15,7 @@ from time_converter.time_utils import (
     convert_utc_to_kyiv,
 )
 from time_converter.utc_time_parser import parse_utc_time_from_text
-from telegram_bot.handlers.message_signature_tracker import (
+from telegram_bot.state.message_signature_tracker import (
     forget_message_signature,
     is_message_signature_unchanged,
     remember_message_signature,
