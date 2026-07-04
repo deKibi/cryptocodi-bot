@@ -11,7 +11,10 @@ from telegram.ext import ContextTypes
 
 # Custom Modules
 from calculator.calculator import CalculatorError, calculate
-from calculator.expression_parser import parse_expression
+from calculator.expression_parser import (
+    ALTERNATIVE_OPERATORS,
+    parse_expression,
+)
 from telegram_bot.logging_config import (
     format_log_metadata,
     get_update_metadata,
@@ -33,16 +36,31 @@ CALCULATION_ERROR_MESSAGE = "Не вдалося обчислити вираз."
 CALCULATOR_MESSAGE_FEATURE = "calculator"
 
 
+def _format_calculation_result(
+    expression: str,
+    result: int | float,
+) -> str:
+    if (
+        "k" in expression.lower()
+        and isinstance(result, float)
+        and result.is_integer()
+    ):
+        return str(int(result))
+
+    return str(result)
+
+
 def format_calculation_response(
     expression: str,
     result: int | float,
 ) -> str:
     """Format a calculation expression and result for a Telegram reply."""
     compact_expression = "".join(expression.split())
+    formatted_result = _format_calculation_result(expression, result)
 
     return (
         f"<b>{html.escape(compact_expression)}</b> = "
-        f"<code>{html.escape(str(result))}</code>"
+        f"<code>{html.escape(formatted_result)}</code>"
     )
 
 
@@ -62,6 +80,9 @@ async def handle_calculator_message(
         return
 
     expression = parse_expression(message_text)
+    display_expression = message_text.strip().translate(
+        ALTERNATIVE_OPERATORS
+    )
     chat = update.effective_chat
 
     if chat is None:
@@ -92,7 +113,7 @@ async def handle_calculator_message(
 
     LOGGER.info(
         "Calculator expression detected: %r | %s",
-        expression,
+        display_expression,
         metadata_text,
     )
 
@@ -101,7 +122,7 @@ async def handle_calculator_message(
     except CalculatorError as error:
         LOGGER.warning(
             "Calculation failed: expression=%r, error=%s | %s",
-            expression,
+            display_expression,
             error,
             metadata_text,
         )
@@ -145,12 +166,12 @@ async def handle_calculator_message(
     log_detected_calculation(
         {
             "chat_type": metadata["chat_type"],
-            "expression": expression,
+            "expression": display_expression,
             "result": result,
         }
     )
 
-    response_text = format_calculation_response(expression, result)
+    response_text = format_calculation_response(display_expression, result)
     related_reply_message_id = get_related_reply_message_id(
         context.bot_data,
         CALCULATOR_MESSAGE_FEATURE,
@@ -173,7 +194,7 @@ async def handle_calculator_message(
         )
         LOGGER.info(
             "Calculation reply sent: expression=%r, result=%r | %s",
-            expression,
+            display_expression,
             result,
             metadata_text,
         )
@@ -186,7 +207,7 @@ async def handle_calculator_message(
         )
         LOGGER.info(
             "Calculation reply updated: expression=%r, result=%r | %s",
-            expression,
+            display_expression,
             result,
             metadata_text,
         )

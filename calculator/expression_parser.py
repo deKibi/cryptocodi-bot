@@ -5,6 +5,9 @@ import ast
 import re
 from typing import Final, Optional
 
+# Custom Modules
+from calculator.compact_number_normalizer import expand_compact_numbers
+
 
 # Expression parsing
 ALTERNATIVE_OPERATORS: Final[dict[int, str]] = str.maketrans({
@@ -15,7 +18,7 @@ ALTERNATIVE_OPERATORS: Final[dict[int, str]] = str.maketrans({
     "−": "-",
 })
 EXPRESSION_PATTERN: Final[re.Pattern[str]] = re.compile(
-    r"[\d\s.()+\-*/]+"
+    r"[\d\s.kK()+\-*/]+"
 )
 SUPPORTED_AST_NODES: Final[tuple[type[ast.AST], ...]] = (
     ast.Expression,
@@ -53,8 +56,8 @@ def parse_expression(message_text: str) -> Optional[str]:
     if not isinstance(message_text, str):
         return None
 
-    normalized_expression = message_text.strip().translate(
-        ALTERNATIVE_OPERATORS
+    normalized_expression = expand_compact_numbers(
+        message_text.strip().translate(ALTERNATIVE_OPERATORS)
     )
 
     if not normalized_expression:
