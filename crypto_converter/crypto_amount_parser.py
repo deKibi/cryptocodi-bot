@@ -25,7 +25,6 @@ class ParsedCryptoAmount:
     amount: Decimal
     ticker: str
     matched_text: str
-    uses_thousand_multiplier: bool = False
 
 
 def _parse_crypto_amount_match(
@@ -42,7 +41,6 @@ def _parse_crypto_amount_match(
         amount=normalized_amount,
         ticker=match.group("ticker").upper(),
         matched_text=match.group(0),
-        uses_thousand_multiplier=match.group("multiplier") is not None,
     )
 
 

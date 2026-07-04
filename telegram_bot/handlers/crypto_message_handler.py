@@ -208,25 +208,6 @@ def format_crypto_responses(
     return "<code>" + "\n\n".join(formatted_conversions) + "</code>"
 
 
-def _format_parsed_crypto_responses(
-    converted_matches: list[
-        tuple[ParsedCryptoAmount, CryptoPriceConversion]
-    ],
-) -> str:
-    formatted_conversions = (
-        _format_crypto_conversion(
-            conversion,
-            show_24h_change=(
-                parsed_crypto_amount.amount == Decimal("1")
-                and not parsed_crypto_amount.uses_thousand_multiplier
-            ),
-        )
-        for parsed_crypto_amount, conversion in converted_matches
-    )
-
-    return "<code>" + "\n\n".join(formatted_conversions) + "</code>"
-
-
 def format_crypto_calculation_response(
     calculation: CalculatedCryptoExpression,
     conversion: CryptoPriceConversion,
@@ -548,9 +529,7 @@ async def handle_crypto_message(
         )
 
         if crypto_calculation is None:
-            response_text = _format_parsed_crypto_responses(
-                converted_matches
-            )
+            response_text = format_crypto_responses(conversions)
         else:
             response_text = format_crypto_calculation_response(
                 crypto_calculation,
