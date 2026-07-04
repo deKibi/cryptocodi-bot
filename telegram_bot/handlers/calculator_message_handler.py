@@ -17,6 +17,10 @@ from telegram_bot.logging_config import (
     get_update_metadata,
     log_detected_calculation,
 )
+from telegram_bot.state.message_reply_tracker import (
+    get_related_reply_message_id,
+    remember_related_reply_message_id,
+)
 from telegram_bot.state.message_signature_tracker import (
     forget_message_signature,
     is_message_signature_unchanged,
@@ -26,7 +30,7 @@ from telegram_bot.state.message_signature_tracker import (
 
 LOGGER = logging.getLogger(__name__)
 CALCULATION_ERROR_MESSAGE = "Не вдалося обчислити вираз."
-CALCULATOR_SIGNATURE_FEATURE = "calculator"
+CALCULATOR_MESSAGE_FEATURE = "calculator"
 
 
 def format_calculation_response(
@@ -66,7 +70,7 @@ async def handle_calculator_message(
     if expression is None:
         forget_message_signature(
             context.bot_data,
-            CALCULATOR_SIGNATURE_FEATURE,
+            CALCULATOR_MESSAGE_FEATURE,
             chat.id,
             message.message_id,
         )
@@ -76,7 +80,7 @@ async def handle_calculator_message(
 
     if is_message_signature_unchanged(
         context.bot_data,
-        CALCULATOR_SIGNATURE_FEATURE,
+        CALCULATOR_MESSAGE_FEATURE,
         chat.id,
         message.message_id,
         expression_signature,
@@ -101,14 +105,37 @@ async def handle_calculator_message(
             error,
             metadata_text,
         )
-        await message.reply_text(
-            text=CALCULATION_ERROR_MESSAGE,
-            do_quote=True,
+        related_reply_message_id = get_related_reply_message_id(
+            context.bot_data,
+            CALCULATOR_MESSAGE_FEATURE,
+            chat.id,
+            message.message_id,
         )
-        LOGGER.info("Calculation error reply sent | %s", metadata_text)
+
+        if related_reply_message_id is None:
+            reply_message = await message.reply_text(
+                text=CALCULATION_ERROR_MESSAGE,
+                do_quote=True,
+            )
+            remember_related_reply_message_id(
+                context.bot_data,
+                CALCULATOR_MESSAGE_FEATURE,
+                chat.id,
+                message.message_id,
+                reply_message.message_id,
+            )
+            LOGGER.info("Calculation error reply sent | %s", metadata_text)
+        else:
+            await context.bot.edit_message_text(
+                chat_id=chat.id,
+                message_id=related_reply_message_id,
+                text=CALCULATION_ERROR_MESSAGE,
+            )
+            LOGGER.info("Calculation error reply updated | %s", metadata_text)
+
         remember_message_signature(
             context.bot_data,
-            CALCULATOR_SIGNATURE_FEATURE,
+            CALCULATOR_MESSAGE_FEATURE,
             chat.id,
             message.message_id,
             expression_signature,
@@ -123,22 +150,50 @@ async def handle_calculator_message(
         }
     )
 
-    await message.reply_text(
-        text=format_calculation_response(expression, result),
-        parse_mode=ParseMode.HTML,
-        do_quote=True,
+    response_text = format_calculation_response(expression, result)
+    related_reply_message_id = get_related_reply_message_id(
+        context.bot_data,
+        CALCULATOR_MESSAGE_FEATURE,
+        chat.id,
+        message.message_id,
     )
 
-    LOGGER.info(
-        "Calculation reply sent: expression=%r, result=%r | %s",
-        expression,
-        result,
-        metadata_text,
-    )
+    if related_reply_message_id is None:
+        reply_message = await message.reply_text(
+            text=response_text,
+            parse_mode=ParseMode.HTML,
+            do_quote=True,
+        )
+        remember_related_reply_message_id(
+            context.bot_data,
+            CALCULATOR_MESSAGE_FEATURE,
+            chat.id,
+            message.message_id,
+            reply_message.message_id,
+        )
+        LOGGER.info(
+            "Calculation reply sent: expression=%r, result=%r | %s",
+            expression,
+            result,
+            metadata_text,
+        )
+    else:
+        await context.bot.edit_message_text(
+            chat_id=chat.id,
+            message_id=related_reply_message_id,
+            text=response_text,
+            parse_mode=ParseMode.HTML,
+        )
+        LOGGER.info(
+            "Calculation reply updated: expression=%r, result=%r | %s",
+            expression,
+            result,
+            metadata_text,
+        )
 
     remember_message_signature(
         context.bot_data,
-        CALCULATOR_SIGNATURE_FEATURE,
+        CALCULATOR_MESSAGE_FEATURE,
         chat.id,
         message.message_id,
         expression_signature,

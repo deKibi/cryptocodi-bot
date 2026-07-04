@@ -15,6 +15,10 @@ from time_converter.time_utils import (
     convert_utc_to_kyiv,
 )
 from time_converter.utc_time_parser import parse_utc_time_from_text
+from telegram_bot.state.message_reply_tracker import (
+    get_related_reply_message_id,
+    remember_related_reply_message_id,
+)
 from telegram_bot.state.message_signature_tracker import (
     forget_message_signature,
     is_message_signature_unchanged,
@@ -28,7 +32,7 @@ from telegram_bot.logging_config import (
 
 
 LOGGER = logging.getLogger(__name__)
-TIME_SIGNATURE_FEATURE = "utc_time"
+TIME_MESSAGE_FEATURE = "utc_time"
 
 
 def format_time_response(utc_datetime: datetime) -> str:
@@ -74,7 +78,7 @@ async def handle_time_message(
     if utc_datetime is None:
         forget_message_signature(
             context.bot_data,
-            TIME_SIGNATURE_FEATURE,
+            TIME_MESSAGE_FEATURE,
             chat.id,
             message.message_id,
         )
@@ -84,7 +88,7 @@ async def handle_time_message(
 
     if is_message_signature_unchanged(
         context.bot_data,
-        TIME_SIGNATURE_FEATURE,
+        TIME_MESSAGE_FEATURE,
         chat.id,
         message.message_id,
         time_signature,
@@ -113,23 +117,52 @@ async def handle_time_message(
         }
     )
 
-    await message.reply_text(
-        text=format_time_response(utc_datetime),
-        parse_mode=ParseMode.HTML,
-        do_quote=True,
+    response_text = format_time_response(utc_datetime)
+    related_reply_message_id = get_related_reply_message_id(
+        context.bot_data,
+        TIME_MESSAGE_FEATURE,
+        chat.id,
+        message.message_id,
     )
 
-    LOGGER.info(
-        "Time conversion reply sent: %s KYIV, %s CET, %s UTC | %s",
-        f"{kyiv_datetime:%H:%M}",
-        f"{central_europe_datetime:%H:%M}",
-        f"{utc_datetime:%H:%M}",
-        metadata_text,
-    )
+    if related_reply_message_id is None:
+        reply_message = await message.reply_text(
+            text=response_text,
+            parse_mode=ParseMode.HTML,
+            do_quote=True,
+        )
+        remember_related_reply_message_id(
+            context.bot_data,
+            TIME_MESSAGE_FEATURE,
+            chat.id,
+            message.message_id,
+            reply_message.message_id,
+        )
+        LOGGER.info(
+            "Time conversion reply sent: %s KYIV, %s CET, %s UTC | %s",
+            f"{kyiv_datetime:%H:%M}",
+            f"{central_europe_datetime:%H:%M}",
+            f"{utc_datetime:%H:%M}",
+            metadata_text,
+        )
+    else:
+        await context.bot.edit_message_text(
+            chat_id=chat.id,
+            message_id=related_reply_message_id,
+            text=response_text,
+            parse_mode=ParseMode.HTML,
+        )
+        LOGGER.info(
+            "Time conversion reply updated: %s KYIV, %s CET, %s UTC | %s",
+            f"{kyiv_datetime:%H:%M}",
+            f"{central_europe_datetime:%H:%M}",
+            f"{utc_datetime:%H:%M}",
+            metadata_text,
+        )
 
     remember_message_signature(
         context.bot_data,
-        TIME_SIGNATURE_FEATURE,
+        TIME_MESSAGE_FEATURE,
         chat.id,
         message.message_id,
         time_signature,
