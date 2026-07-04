@@ -24,6 +24,13 @@ from crypto_converter.usage_limiter import (
     CoinGeckoDailyRequestLimitExceeded,
     crypto_usage_limiter,
 )
+from telegram_bot.keyboards.crypto_conversion_keyboard import (
+    build_crypto_conversion_keyboard,
+)
+from telegram_bot.state.message_reply_tracker import (
+    get_related_reply_message_id,
+    remember_related_reply_message_id,
+)
 from telegram_bot.state.message_signature_tracker import (
     forget_message_signature,
     is_message_signature_unchanged,
@@ -38,7 +45,7 @@ from telegram_bot.logging_config import (
 
 LOGGER = logging.getLogger(__name__)
 LIMIT_REACHED_MESSAGE = "Наразі ліміт вичерпано."
-CRYPTO_SIGNATURE_FEATURE = "crypto"
+CRYPTO_MESSAGE_FEATURE = "crypto"
 
 
 def _format_decimal(value: Decimal) -> str:
@@ -109,7 +116,7 @@ async def handle_crypto_message(
     if not parsed_crypto_amounts:
         forget_message_signature(
             context.bot_data,
-            CRYPTO_SIGNATURE_FEATURE,
+            CRYPTO_MESSAGE_FEATURE,
             chat.id,
             message.message_id,
         )
@@ -122,7 +129,7 @@ async def handle_crypto_message(
 
     if is_message_signature_unchanged(
         context.bot_data,
-        CRYPTO_SIGNATURE_FEATURE,
+        CRYPTO_MESSAGE_FEATURE,
         chat.id,
         message.message_id,
         crypto_signature,
@@ -195,6 +202,10 @@ async def handle_crypto_message(
             converted_matches.append((parsed_crypto_amount, conversion))
 
     if converted_matches:
+        conversions = [
+            conversion
+            for _parsed_crypto_amount, conversion in converted_matches
+        ]
         matched_texts = [
             parsed_crypto_amount.matched_text
             for parsed_crypto_amount, _conversion in converted_matches
@@ -225,19 +236,47 @@ async def handle_crypto_message(
             }
         )
 
-        await message.reply_text(
-            text=format_crypto_responses(
-                [conversion for _parsed, conversion in converted_matches]
-            ),
-            parse_mode=ParseMode.HTML,
-            do_quote=True,
+        response_text = format_crypto_responses(conversions)
+        response_keyboard = build_crypto_conversion_keyboard(conversions)
+        related_reply_message_id = get_related_reply_message_id(
+            context.bot_data,
+            CRYPTO_MESSAGE_FEATURE,
+            chat.id,
+            message.message_id,
         )
 
-        LOGGER.info(
-            "Crypto conversion reply sent: %d conversions | %s",
-            len(converted_matches),
-            metadata_text,
-        )
+        if related_reply_message_id is None:
+            reply_message = await message.reply_text(
+                text=response_text,
+                parse_mode=ParseMode.HTML,
+                do_quote=True,
+                reply_markup=response_keyboard,
+            )
+            remember_related_reply_message_id(
+                context.bot_data,
+                CRYPTO_MESSAGE_FEATURE,
+                chat.id,
+                message.message_id,
+                reply_message.message_id,
+            )
+            LOGGER.info(
+                "Crypto conversion reply sent: %d conversions | %s",
+                len(converted_matches),
+                metadata_text,
+            )
+        else:
+            await context.bot.edit_message_text(
+                chat_id=chat.id,
+                message_id=related_reply_message_id,
+                text=response_text,
+                parse_mode=ParseMode.HTML,
+                reply_markup=response_keyboard,
+            )
+            LOGGER.info(
+                "Crypto conversion reply updated: %d conversions | %s",
+                len(converted_matches),
+                metadata_text,
+            )
 
     if limit_reached:
         await message.reply_text(
@@ -248,7 +287,7 @@ async def handle_crypto_message(
 
     remember_message_signature(
         context.bot_data,
-        CRYPTO_SIGNATURE_FEATURE,
+        CRYPTO_MESSAGE_FEATURE,
         chat.id,
         message.message_id,
         crypto_signature,
