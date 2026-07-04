@@ -2,16 +2,22 @@
 
 # Standard Libraries
 import asyncio
+import html
 import logging
 from decimal import Decimal
 
 # Third-party Libraries
-from telegram import Update
+from telegram import InlineKeyboardMarkup, Message, Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
 # Custom Modules
+from calculator.calculator import CalculatorError
 from config import MAX_CRYPTO_PAIRS_PER_MESSAGE
+from crypto_calculator.crypto_calculator import (
+    CalculatedCryptoExpression,
+    calculate_crypto_expression,
+)
 from crypto_converter.coin_ticker_resolver import BLOCKED_TICKERS
 from crypto_converter.crypto_amount_parser import (
     ParsedCryptoAmount,
@@ -48,6 +54,7 @@ LOGGER = logging.getLogger(__name__)
 CRYPTO_DAILY_LIMIT_REACHED_MESSAGE = (
     "Ліміт криптоконвертацій на день вичерпано."
 )
+CRYPTO_CALCULATION_ERROR_MESSAGE = "Не вдалося обчислити вираз."
 CRYPTO_MESSAGE_FEATURE = "crypto"
 CRYPTO_RESPONSE_FEATURE = "crypto_response"
 
@@ -94,6 +101,25 @@ def format_crypto_responses(
     return "<code>" + "\n\n".join(formatted_conversions) + "</code>"
 
 
+def format_crypto_calculation_response(
+    calculation: CalculatedCryptoExpression,
+    conversion: CryptoPriceConversion,
+) -> str:
+    """Format a calculated crypto amount and its fiat conversion."""
+    expression = "".join(calculation.display_expression.split())
+    amount = _format_decimal(conversion.amount)
+    total_usd = _format_fiat_amount(conversion.total_usd)
+    total_uah = _format_fiat_amount(conversion.total_uah)
+    ticker = html.escape(conversion.ticker)
+
+    return (
+        f"<b>{html.escape(expression)} = </b><code>{amount}</code>\n"
+        f"<code>{amount} {ticker}</code>:\n"
+        f"<code>{total_usd} USD</code>\n"
+        f"<code>{total_uah} UAH</code>"
+    )
+
+
 def _get_unique_crypto_amounts(
     message_text: str,
 ) -> list[ParsedCryptoAmount]:
@@ -118,6 +144,67 @@ def _get_unique_crypto_amounts(
     return unique_crypto_amounts
 
 
+async def _send_or_update_crypto_calculation_error(
+    message: Message,
+    context: ContextTypes.DEFAULT_TYPE,
+    chat_id: int,
+    metadata_text: str,
+) -> None:
+    source_message_id = message.message_id
+    response_signature = (CRYPTO_CALCULATION_ERROR_MESSAGE, ())
+    related_reply_message_id = get_related_reply_message_id(
+        context.bot_data,
+        CRYPTO_MESSAGE_FEATURE,
+        chat_id,
+        source_message_id,
+    )
+
+    if related_reply_message_id is None:
+        reply_message = await message.reply_text(
+            text=CRYPTO_CALCULATION_ERROR_MESSAGE,
+            do_quote=True,
+        )
+        remember_related_reply_message_id(
+            context.bot_data,
+            CRYPTO_MESSAGE_FEATURE,
+            chat_id,
+            source_message_id,
+            reply_message.message_id,
+        )
+        remember_message_signature(
+            context.bot_data,
+            CRYPTO_RESPONSE_FEATURE,
+            chat_id,
+            source_message_id,
+            response_signature,
+        )
+        LOGGER.info("Crypto calculation error reply sent | %s", metadata_text)
+    elif not is_message_signature_unchanged(
+        context.bot_data,
+        CRYPTO_RESPONSE_FEATURE,
+        chat_id,
+        source_message_id,
+        response_signature,
+    ):
+        await context.bot.edit_message_text(
+            chat_id=chat_id,
+            message_id=related_reply_message_id,
+            text=CRYPTO_CALCULATION_ERROR_MESSAGE,
+            reply_markup=InlineKeyboardMarkup([]),
+        )
+        remember_message_signature(
+            context.bot_data,
+            CRYPTO_RESPONSE_FEATURE,
+            chat_id,
+            source_message_id,
+            response_signature,
+        )
+        LOGGER.info(
+            "Crypto calculation error reply updated | %s",
+            metadata_text,
+        )
+
+
 async def handle_crypto_message(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
@@ -133,11 +220,64 @@ async def handle_crypto_message(
     if message_text is None:
         return
 
-    parsed_crypto_amounts = _get_unique_crypto_amounts(message_text)
     chat = update.effective_chat
 
     if chat is None:
         return
+
+    try:
+        crypto_calculation = calculate_crypto_expression(message_text)
+    except CalculatorError as error:
+        calculation_signature = (
+            "crypto_calculation_error",
+            "".join(message_text.split()).lower(),
+        )
+
+        if is_message_signature_unchanged(
+            context.bot_data,
+            CRYPTO_MESSAGE_FEATURE,
+            chat.id,
+            message.message_id,
+            calculation_signature,
+        ):
+            return
+
+        metadata_text = format_log_metadata(get_update_metadata(update))
+        LOGGER.warning(
+            "Crypto calculation failed: expression=%r, error=%s | %s",
+            message_text,
+            error,
+            metadata_text,
+        )
+        await _send_or_update_crypto_calculation_error(
+            message,
+            context,
+            chat.id,
+            metadata_text,
+        )
+        remember_message_signature(
+            context.bot_data,
+            CRYPTO_MESSAGE_FEATURE,
+            chat.id,
+            message.message_id,
+            calculation_signature,
+        )
+        return
+
+    if (
+        crypto_calculation is not None
+        and crypto_calculation.ticker not in BLOCKED_TICKERS
+    ):
+        parsed_crypto_amounts = [
+            ParsedCryptoAmount(
+                amount=crypto_calculation.amount,
+                ticker=crypto_calculation.ticker,
+                matched_text=crypto_calculation.matched_text,
+            )
+        ]
+    else:
+        crypto_calculation = None
+        parsed_crypto_amounts = _get_unique_crypto_amounts(message_text)
 
     if not parsed_crypto_amounts:
         forget_message_signature(
@@ -148,10 +288,21 @@ async def handle_crypto_message(
         )
         return
 
-    crypto_signature = tuple(
-        (parsed_crypto_amount.amount, parsed_crypto_amount.ticker)
-        for parsed_crypto_amount in parsed_crypto_amounts
-    )
+    if crypto_calculation is None:
+        crypto_signature = tuple(
+            (parsed_crypto_amount.amount, parsed_crypto_amount.ticker)
+            for parsed_crypto_amount in parsed_crypto_amounts
+        )
+    else:
+        crypto_signature = (
+            (
+                "crypto_calculation",
+                "".join(
+                    crypto_calculation.calculation_expression.split()
+                ),
+                crypto_calculation.ticker,
+            ),
+        )
 
     if is_message_signature_unchanged(
         context.bot_data,
@@ -262,7 +413,13 @@ async def handle_crypto_message(
             }
         )
 
-        response_text = format_crypto_responses(conversions)
+        if crypto_calculation is None:
+            response_text = format_crypto_responses(conversions)
+        else:
+            response_text = format_crypto_calculation_response(
+                crypto_calculation,
+                conversions[0],
+            )
         response_keyboard = build_crypto_conversion_keyboard(conversions)
         response_signature = (
             response_text,
