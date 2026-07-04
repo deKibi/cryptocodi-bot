@@ -9,6 +9,7 @@ from decimal import Decimal
 # Third-party Libraries
 from telegram import InlineKeyboardMarkup, Message, Update
 from telegram.constants import ParseMode
+from telegram.error import TelegramError
 from telegram.ext import ContextTypes
 
 # Custom Modules
@@ -34,19 +35,22 @@ from crypto_converter.usage_limiter import (
 from telegram_bot.keyboards.crypto_conversion_keyboard import (
     build_crypto_conversion_keyboard,
 )
+from telegram_bot.logging_config import (
+    format_log_metadata,
+    get_update_metadata,
+    log_detected_crypto_conversion,
+)
 from telegram_bot.state.message_reply_tracker import (
+    forget_related_reply_message_id,
     get_related_reply_message_id,
+    remember_deleted_reply,
     remember_related_reply_message_id,
+    was_reply_deleted,
 )
 from telegram_bot.state.message_signature_tracker import (
     forget_message_signature,
     is_message_signature_unchanged,
     remember_message_signature,
-)
-from telegram_bot.logging_config import (
-    format_log_metadata,
-    get_update_metadata,
-    log_detected_crypto_conversion,
 )
 
 
@@ -57,6 +61,91 @@ CRYPTO_DAILY_LIMIT_REACHED_MESSAGE = (
 CRYPTO_CALCULATION_ERROR_MESSAGE = "Не вдалося обчислити вираз."
 CRYPTO_MESSAGE_FEATURE = "crypto"
 CRYPTO_RESPONSE_FEATURE = "crypto_response"
+
+
+async def handle_delete_crypto_response(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+) -> None:
+    """Delete a crypto reply when requested by its source message author."""
+    callback_query = update.callback_query
+
+    if callback_query is None:
+        return
+
+    await callback_query.answer()
+    response_message = callback_query.message
+
+    if not isinstance(response_message, Message):
+        LOGGER.warning("Crypto response deletion skipped: message unavailable")
+        return
+
+    source_message = response_message.reply_to_message
+    source_user = source_message.from_user if source_message is not None else None
+
+    if source_message is None or source_user is None:
+        LOGGER.warning(
+            "Crypto response deletion skipped: source message unavailable | "
+            "chat_id=%s, response_message_id=%s",
+            response_message.chat_id,
+            response_message.message_id,
+        )
+        return
+
+    if source_user.id != callback_query.from_user.id:
+        LOGGER.warning(
+            "Crypto response deletion denied: user is not source author | "
+            "chat_id=%s, source_message_id=%s, user_id=%s",
+            response_message.chat_id,
+            source_message.message_id,
+            callback_query.from_user.id,
+        )
+        return
+
+    try:
+        await response_message.delete()
+    except TelegramError as error:
+        LOGGER.warning(
+            "Crypto response deletion failed: %s | "
+            "chat_id=%s, response_message_id=%s",
+            error,
+            response_message.chat_id,
+            response_message.message_id,
+        )
+        return
+
+    forget_related_reply_message_id(
+        context.bot_data,
+        CRYPTO_MESSAGE_FEATURE,
+        response_message.chat_id,
+        source_message.message_id,
+    )
+    forget_message_signature(
+        context.bot_data,
+        CRYPTO_MESSAGE_FEATURE,
+        response_message.chat_id,
+        source_message.message_id,
+    )
+    forget_message_signature(
+        context.bot_data,
+        CRYPTO_RESPONSE_FEATURE,
+        response_message.chat_id,
+        source_message.message_id,
+    )
+    remember_deleted_reply(
+        context.bot_data,
+        CRYPTO_MESSAGE_FEATURE,
+        response_message.chat_id,
+        source_message.message_id,
+    )
+    LOGGER.info(
+        "Crypto response deleted | chat_id=%s, source_message_id=%s, "
+        "response_message_id=%s, user_id=%s",
+        response_message.chat_id,
+        source_message.message_id,
+        response_message.message_id,
+        callback_query.from_user.id,
+    )
 
 
 def _format_decimal(value: Decimal) -> str:
@@ -223,6 +312,14 @@ async def handle_crypto_message(
     chat = update.effective_chat
 
     if chat is None:
+        return
+
+    if was_reply_deleted(
+        context.bot_data,
+        CRYPTO_MESSAGE_FEATURE,
+        chat.id,
+        message.message_id,
+    ):
         return
 
     try:
