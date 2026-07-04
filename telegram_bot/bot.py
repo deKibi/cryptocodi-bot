@@ -9,6 +9,7 @@ from typing import Final, Optional
 from telegram import BotCommand, Update
 from telegram.ext import (
     Application,
+    CallbackQueryHandler,
     CommandHandler,
     ContextTypes,
     MessageHandler,
@@ -30,7 +31,13 @@ from config import (
 from telegram_bot.handlers.calculator_message_handler import (
     handle_calculator_message,
 )
-from telegram_bot.handlers.crypto_message_handler import handle_crypto_message
+from telegram_bot.handlers.crypto_message_handler import (
+    handle_crypto_message,
+    handle_delete_crypto_response,
+)
+from telegram_bot.keyboards.crypto_conversion_keyboard import (
+    DELETE_CRYPTO_RESPONSE_CALLBACK,
+)
 from telegram_bot.handlers.time_message_handler import handle_time_message
 from telegram_bot.logging_config import (
     configure_logging,
@@ -160,6 +167,12 @@ def create_application() -> Application:
     supported_chats = filters.ChatType.PRIVATE | filters.ChatType.GROUPS
 
     application.add_handler(CommandHandler("start", start_command))
+    application.add_handler(
+        CallbackQueryHandler(
+            handle_delete_crypto_response,
+            pattern=f"^{DELETE_CRYPTO_RESPONSE_CALLBACK}$",
+        )
+    )
     application.add_handler(
         MessageHandler(
             supported_chats
