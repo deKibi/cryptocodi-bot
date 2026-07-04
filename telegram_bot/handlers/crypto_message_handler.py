@@ -24,6 +24,9 @@ from crypto_converter.usage_limiter import (
     CoinGeckoDailyRequestLimitExceeded,
     crypto_usage_limiter,
 )
+from telegram_bot.keyboards.crypto_conversion_keyboard import (
+    build_crypto_conversion_keyboard,
+)
 from telegram_bot.state.message_signature_tracker import (
     forget_message_signature,
     is_message_signature_unchanged,
@@ -195,6 +198,10 @@ async def handle_crypto_message(
             converted_matches.append((parsed_crypto_amount, conversion))
 
     if converted_matches:
+        conversions = [
+            conversion
+            for _parsed_crypto_amount, conversion in converted_matches
+        ]
         matched_texts = [
             parsed_crypto_amount.matched_text
             for parsed_crypto_amount, _conversion in converted_matches
@@ -226,11 +233,10 @@ async def handle_crypto_message(
         )
 
         await message.reply_text(
-            text=format_crypto_responses(
-                [conversion for _parsed, conversion in converted_matches]
-            ),
+            text=format_crypto_responses(conversions),
             parse_mode=ParseMode.HTML,
             do_quote=True,
+            reply_markup=build_crypto_conversion_keyboard(conversions),
         )
 
         LOGGER.info(
