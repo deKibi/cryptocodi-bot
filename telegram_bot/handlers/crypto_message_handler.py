@@ -4,7 +4,7 @@
 import asyncio
 import html
 import logging
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 
 # Third-party Libraries
 from telegram import InlineKeyboardMarkup, Message, Update
@@ -161,13 +161,28 @@ def _format_fiat_amount(value: Decimal) -> str:
     return _format_decimal(value)
 
 
-def _format_crypto_conversion(conversion: CryptoPriceConversion) -> str:
+def _format_24h_change(value: Decimal) -> str:
+    rounded_value = value.quantize(
+        Decimal("0.01"),
+        rounding=ROUND_HALF_UP,
+    )
+    return f"{rounded_value:+.2f}% за 24г"
+
+
+def _format_crypto_conversion(
+    conversion: CryptoPriceConversion,
+    show_24h_change: bool,
+) -> str:
     amount = _format_decimal(conversion.amount)
     total_usd = _format_fiat_amount(conversion.total_usd)
     total_uah = _format_fiat_amount(conversion.total_uah)
+    change_text = ""
+
+    if show_24h_change and conversion.usd_24h_change is not None:
+        change_text = f" ({_format_24h_change(conversion.usd_24h_change)})"
 
     return (
-        f"{amount} {conversion.ticker}:\n"
+        f"{amount} {conversion.ticker}{change_text}:\n"
         f"{total_usd} USD\n"
         f"{total_uah} UAH"
     )
@@ -183,7 +198,10 @@ def format_crypto_responses(
 ) -> str:
     """Format multiple cryptocurrency conversions in one Telegram reply."""
     formatted_conversions = (
-        _format_crypto_conversion(conversion)
+        _format_crypto_conversion(
+            conversion,
+            show_24h_change=conversion.amount == Decimal("1"),
+        )
         for conversion in conversions
     )
 
