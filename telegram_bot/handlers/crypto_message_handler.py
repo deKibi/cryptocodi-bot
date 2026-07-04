@@ -49,6 +49,7 @@ CRYPTO_DAILY_LIMIT_REACHED_MESSAGE = (
     "Ліміт криптоконвертацій на день вичерпано."
 )
 CRYPTO_MESSAGE_FEATURE = "crypto"
+CRYPTO_RESPONSE_FEATURE = "crypto_response"
 
 
 def _format_decimal(value: Decimal) -> str:
@@ -93,6 +94,30 @@ def format_crypto_responses(
     return "<code>" + "\n\n".join(formatted_conversions) + "</code>"
 
 
+def _get_unique_crypto_amounts(
+    message_text: str,
+) -> list[ParsedCryptoAmount]:
+    unique_crypto_amounts: list[ParsedCryptoAmount] = []
+    seen_pairs: set[tuple[Decimal, str]] = set()
+
+    for parsed_crypto_amount in parse_crypto_amounts_from_text(message_text):
+        pair = (parsed_crypto_amount.amount, parsed_crypto_amount.ticker)
+
+        if (
+            parsed_crypto_amount.ticker in BLOCKED_TICKERS
+            or pair in seen_pairs
+        ):
+            continue
+
+        seen_pairs.add(pair)
+        unique_crypto_amounts.append(parsed_crypto_amount)
+
+        if len(unique_crypto_amounts) == MAX_CRYPTO_PAIRS_PER_MESSAGE:
+            break
+
+    return unique_crypto_amounts
+
+
 async def handle_crypto_message(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
@@ -108,11 +133,7 @@ async def handle_crypto_message(
     if message_text is None:
         return
 
-    parsed_crypto_amounts = [
-        parsed_crypto_amount
-        for parsed_crypto_amount in parse_crypto_amounts_from_text(message_text)
-        if parsed_crypto_amount.ticker not in BLOCKED_TICKERS
-    ][:MAX_CRYPTO_PAIRS_PER_MESSAGE]
+    parsed_crypto_amounts = _get_unique_crypto_amounts(message_text)
     chat = update.effective_chat
 
     if chat is None:
@@ -243,6 +264,14 @@ async def handle_crypto_message(
 
         response_text = format_crypto_responses(conversions)
         response_keyboard = build_crypto_conversion_keyboard(conversions)
+        response_signature = (
+            response_text,
+            tuple(
+                (button.text, button.url)
+                for row in response_keyboard.inline_keyboard
+                for button in row
+            ),
+        )
         related_reply_message_id = get_related_reply_message_id(
             context.bot_data,
             CRYPTO_MESSAGE_FEATURE,
@@ -264,12 +293,25 @@ async def handle_crypto_message(
                 message.message_id,
                 reply_message.message_id,
             )
+            remember_message_signature(
+                context.bot_data,
+                CRYPTO_RESPONSE_FEATURE,
+                chat.id,
+                message.message_id,
+                response_signature,
+            )
             LOGGER.info(
                 "Crypto conversion reply sent: %d conversions | %s",
                 len(converted_matches),
                 metadata_text,
             )
-        else:
+        elif not is_message_signature_unchanged(
+            context.bot_data,
+            CRYPTO_RESPONSE_FEATURE,
+            chat.id,
+            message.message_id,
+            response_signature,
+        ):
             await context.bot.edit_message_text(
                 chat_id=chat.id,
                 message_id=related_reply_message_id,
@@ -277,8 +319,21 @@ async def handle_crypto_message(
                 parse_mode=ParseMode.HTML,
                 reply_markup=response_keyboard,
             )
+            remember_message_signature(
+                context.bot_data,
+                CRYPTO_RESPONSE_FEATURE,
+                chat.id,
+                message.message_id,
+                response_signature,
+            )
             LOGGER.info(
                 "Crypto conversion reply updated: %d conversions | %s",
+                len(converted_matches),
+                metadata_text,
+            )
+        else:
+            LOGGER.info(
+                "Crypto conversion reply unchanged: %d conversions | %s",
                 len(converted_matches),
                 metadata_text,
             )
