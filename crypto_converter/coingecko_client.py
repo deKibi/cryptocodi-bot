@@ -4,7 +4,7 @@
 import json
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
-from typing import Final
+from typing import Final, Optional
 
 # Third-party Libraries
 import httpx
@@ -34,6 +34,7 @@ class CoinGeckoUnitPrice:
     coin_id: str
     usd: Decimal
     uah: Decimal
+    usd_24h_change: Optional[Decimal] = None
 
 
 @dataclass(frozen=True)
@@ -70,6 +71,35 @@ def _parse_price(coin_data: dict[str, object], currency: str) -> Decimal:
         )
 
     return price
+
+
+def _parse_optional_percentage(
+    coin_data: dict[str, object],
+    field_name: str,
+) -> Optional[Decimal]:
+    value = coin_data.get(field_name)
+
+    if value is None:
+        return None
+
+    if isinstance(value, bool):
+        raise CoinGeckoAPIError(
+            f"CoinGecko returned an invalid {field_name} value"
+        )
+
+    try:
+        percentage = Decimal(str(value))
+    except (InvalidOperation, ValueError) as error:
+        raise CoinGeckoAPIError(
+            f"CoinGecko returned an invalid {field_name} value"
+        ) from error
+
+    if not percentage.is_finite():
+        raise CoinGeckoAPIError(
+            f"CoinGecko returned an invalid {field_name} value"
+        )
+
+    return percentage
 
 
 def _get_response_data(
@@ -197,6 +227,7 @@ def get_coin_unit_price(coin_id: str) -> CoinGeckoUnitPrice:
         params={
             "ids": normalized_coin_id,
             "vs_currencies": "usd,uah",
+            "include_24hr_change": "true",
         },
     )
 
@@ -214,4 +245,8 @@ def get_coin_unit_price(coin_id: str) -> CoinGeckoUnitPrice:
         coin_id=normalized_coin_id,
         usd=_parse_price(coin_data, "usd"),
         uah=_parse_price(coin_data, "uah"),
+        usd_24h_change=_parse_optional_percentage(
+            coin_data,
+            "usd_24h_change",
+        ),
     )

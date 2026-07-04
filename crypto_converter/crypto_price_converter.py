@@ -24,6 +24,7 @@ class CryptoPriceConversion:
     unit_price_uah: Decimal
     total_usd: Decimal
     total_uah: Decimal
+    usd_24h_change: Optional[Decimal] = None
 
 
 def _convert_uah_to_fiat(amount: Decimal) -> CryptoPriceConversion:
@@ -73,6 +74,7 @@ def convert_crypto_to_fiat(
         unit_price_uah=unit_price.uah,
         total_usd=amount * unit_price.usd,
         total_uah=amount * unit_price.uah,
+        usd_24h_change=unit_price.usd_24h_change,
     )
 
 
