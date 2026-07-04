@@ -169,13 +169,16 @@ def _format_24h_change(value: Decimal) -> str:
     return f"{rounded_value:+.2f}% за 24г"
 
 
-def _format_crypto_conversion(conversion: CryptoPriceConversion) -> str:
+def _format_crypto_conversion(
+    conversion: CryptoPriceConversion,
+    show_24h_change: bool,
+) -> str:
     amount = _format_decimal(conversion.amount)
     total_usd = _format_fiat_amount(conversion.total_usd)
     total_uah = _format_fiat_amount(conversion.total_uah)
     change_text = ""
 
-    if conversion.usd_24h_change is not None:
+    if show_24h_change and conversion.usd_24h_change is not None:
         change_text = f" ({_format_24h_change(conversion.usd_24h_change)})"
 
     return (
@@ -195,8 +198,30 @@ def format_crypto_responses(
 ) -> str:
     """Format multiple cryptocurrency conversions in one Telegram reply."""
     formatted_conversions = (
-        _format_crypto_conversion(conversion)
+        _format_crypto_conversion(
+            conversion,
+            show_24h_change=conversion.amount == Decimal("1"),
+        )
         for conversion in conversions
+    )
+
+    return "<code>" + "\n\n".join(formatted_conversions) + "</code>"
+
+
+def _format_parsed_crypto_responses(
+    converted_matches: list[
+        tuple[ParsedCryptoAmount, CryptoPriceConversion]
+    ],
+) -> str:
+    formatted_conversions = (
+        _format_crypto_conversion(
+            conversion,
+            show_24h_change=(
+                parsed_crypto_amount.amount == Decimal("1")
+                and not parsed_crypto_amount.uses_thousand_multiplier
+            ),
+        )
+        for parsed_crypto_amount, conversion in converted_matches
     )
 
     return "<code>" + "\n\n".join(formatted_conversions) + "</code>"
@@ -523,7 +548,9 @@ async def handle_crypto_message(
         )
 
         if crypto_calculation is None:
-            response_text = format_crypto_responses(conversions)
+            response_text = _format_parsed_crypto_responses(
+                converted_matches
+            )
         else:
             response_text = format_crypto_calculation_response(
                 crypto_calculation,
