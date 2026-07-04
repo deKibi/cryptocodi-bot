@@ -113,8 +113,9 @@ def format_crypto_calculation_response(
     ticker = html.escape(conversion.ticker)
 
     return (
-        f"<b>{html.escape(expression)} {ticker} = {amount} {ticker}</b>\n"
-        f"<code>{total_usd} USD\n"
+        f"<b>{html.escape(expression)}={amount}</b>\n"
+        f"<code>{amount} {ticker}\n"
+        f"{total_usd} USD\n"
         f"{total_uah} UAH</code>"
     )
 
