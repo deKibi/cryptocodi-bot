@@ -17,6 +17,7 @@ from calculator.calculator import CalculatorError
 from config import MAX_CRYPTO_PAIRS_PER_MESSAGE
 from crypto_calculator.crypto_calculator import (
     CalculatedCryptoExpression,
+    ZeroCryptoAmountError,
     calculate_crypto_expression,
 )
 from crypto_converter.coin_ticker_resolver import BLOCKED_TICKERS
@@ -238,6 +239,7 @@ def _get_unique_crypto_amounts(
 
         if (
             parsed_crypto_amount.ticker in BLOCKED_TICKERS
+            or parsed_crypto_amount.amount == 0
             or pair in seen_pairs
         ):
             continue
@@ -342,6 +344,14 @@ async def handle_crypto_message(
 
     try:
         crypto_calculation = calculate_crypto_expression(message_text)
+    except ZeroCryptoAmountError:
+        forget_message_signature(
+            context.bot_data,
+            CRYPTO_MESSAGE_FEATURE,
+            chat.id,
+            message.message_id,
+        )
+        return
     except CalculatorError as error:
         calculation_signature = (
             "crypto_calculation_error",
