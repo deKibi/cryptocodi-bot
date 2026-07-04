@@ -12,6 +12,7 @@ from telegram.ext import ContextTypes
 
 # Custom Modules
 from config import MAX_CRYPTO_PAIRS_PER_MESSAGE
+from crypto_converter.coin_ticker_resolver import BLOCKED_TICKERS
 from crypto_converter.crypto_amount_parser import (
     ParsedCryptoAmount,
     parse_crypto_amounts_from_text,
@@ -44,7 +45,9 @@ from telegram_bot.logging_config import (
 
 
 LOGGER = logging.getLogger(__name__)
-LIMIT_REACHED_MESSAGE = "Наразі ліміт вичерпано."
+CRYPTO_DAILY_LIMIT_REACHED_MESSAGE = (
+    "Ліміт криптоконвертацій на день вичерпано."
+)
 CRYPTO_MESSAGE_FEATURE = "crypto"
 
 
@@ -105,9 +108,11 @@ async def handle_crypto_message(
     if message_text is None:
         return
 
-    parsed_crypto_amounts = parse_crypto_amounts_from_text(message_text)[
-        :MAX_CRYPTO_PAIRS_PER_MESSAGE
-    ]
+    parsed_crypto_amounts = [
+        parsed_crypto_amount
+        for parsed_crypto_amount in parse_crypto_amounts_from_text(message_text)
+        if parsed_crypto_amount.ticker not in BLOCKED_TICKERS
+    ][:MAX_CRYPTO_PAIRS_PER_MESSAGE]
     chat = update.effective_chat
 
     if chat is None:
@@ -280,7 +285,7 @@ async def handle_crypto_message(
 
     if limit_reached:
         await message.reply_text(
-            text=LIMIT_REACHED_MESSAGE,
+            text=CRYPTO_DAILY_LIMIT_REACHED_MESSAGE,
             do_quote=True,
         )
         LOGGER.info("Limit reached reply sent | %s", metadata_text)
