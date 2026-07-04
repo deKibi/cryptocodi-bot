@@ -24,6 +24,10 @@ EXPLICIT_OPERATOR_PATTERN: Final[re.Pattern[str]] = re.compile(
 )
 
 
+class ZeroCryptoAmountError(InvalidExpressionError):
+    """Indicate that a crypto calculation produced a zero amount."""
+
+
 @dataclass(frozen=True)
 class CalculatedCryptoExpression:
     """Represent a calculated arithmetic expression with a crypto ticker."""
@@ -59,7 +63,12 @@ def calculate_crypto_expression(
     calculated_value = calculate(calculation_expression)
     amount = Decimal(str(calculated_value))
 
-    if amount <= 0:
+    if amount == 0:
+        raise ZeroCryptoAmountError(
+            "Crypto calculation produced a zero amount."
+        )
+
+    if amount < 0:
         raise InvalidExpressionError(
             "Crypto calculation must produce a positive amount."
         )
