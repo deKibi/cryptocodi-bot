@@ -23,18 +23,22 @@ def build_crypto_conversion_keyboard(
 ) -> InlineKeyboardMarkup:
     """Build unique CoinGecko chart buttons in conversion order."""
     keyboard: list[list[InlineKeyboardButton]] = []
-    added_tickers: set[str] = set()
+    added_coin_ids: set[str] = set()
 
     for conversion in conversions:
-        if conversion.ticker in added_tickers:
+        if (
+            conversion.ticker == "UAH"
+            or conversion.coin_id in added_coin_ids
+        ):
             continue
 
-        added_tickers.add(conversion.ticker)
+        added_coin_ids.add(conversion.coin_id)
         coin_id = quote(conversion.coin_id.strip(), safe="")
+        coin_name = conversion.coin_name.strip() or conversion.ticker
         keyboard.append(
             [
                 InlineKeyboardButton(
-                    text=f"📈 Графік {conversion.ticker}",
+                    text=f"📈 Графік {coin_name}",
                     url=COINGECKO_COIN_URL_TEMPLATE.format(coin_id=coin_id),
                 )
             ]

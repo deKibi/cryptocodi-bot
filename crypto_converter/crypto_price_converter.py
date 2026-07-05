@@ -6,7 +6,7 @@ from decimal import Decimal
 from typing import Optional
 
 # Custom Modules
-from crypto_converter.coin_ticker_resolver import resolve_coin_ticker
+from crypto_converter.coin_ticker_resolver import resolve_coin
 from crypto_converter.coingecko_client import (
     CoinGeckoAPIError,
     get_coin_unit_price,
@@ -25,6 +25,7 @@ class CryptoPriceConversion:
     total_usd: Decimal
     total_uah: Decimal
     usd_24h_change: Optional[Decimal] = None
+    coin_name: str = ""
 
 
 def _convert_uah_to_fiat(amount: Decimal) -> CryptoPriceConversion:
@@ -43,6 +44,7 @@ def _convert_uah_to_fiat(amount: Decimal) -> CryptoPriceConversion:
         unit_price_uah=Decimal("1"),
         total_usd=amount * unit_price_usd,
         total_uah=amount,
+        coin_name="Hryvnia",
     )
 
 
@@ -59,22 +61,23 @@ def convert_crypto_to_fiat(
     if normalized_ticker == "UAH":
         return _convert_uah_to_fiat(amount)
 
-    coin_id = resolve_coin_ticker(normalized_ticker)
+    resolved_coin = resolve_coin(normalized_ticker)
 
-    if coin_id is None:
+    if resolved_coin is None:
         return None
 
-    unit_price = get_coin_unit_price(coin_id)
+    unit_price = get_coin_unit_price(resolved_coin.coin_id)
 
     return CryptoPriceConversion(
         amount=amount,
-        ticker=normalized_ticker,
-        coin_id=coin_id,
+        ticker=resolved_coin.ticker,
+        coin_id=resolved_coin.coin_id,
         unit_price_usd=unit_price.usd,
         unit_price_uah=unit_price.uah,
         total_usd=amount * unit_price.usd,
         total_uah=amount * unit_price.uah,
         usd_24h_change=unit_price.usd_24h_change,
+        coin_name=resolved_coin.name,
     )
 
 
