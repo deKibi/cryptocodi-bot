@@ -49,7 +49,7 @@ from telegram_bot.logging_config import (
 LOGGER = logging.getLogger(__name__)
 STARTUP_DELAY_SECONDS: Final[int] = 3
 
-START_MESSAGE = """Привіт! Це @cryptocodi bot.
+BOT_INFO_MESSAGE = """Привіт! Це @cryptocodi bot.
 
 <b>Що бот вміє зараз:</b>
 • знаходити UTC-час у повідомленнях і переводити його в Kyiv та CET (центральноєвропейський час, Vien)
@@ -70,6 +70,7 @@ START_MESSAGE = """Привіт! Це @cryptocodi bot.
 
 BOT_COMMANDS = [
     BotCommand("start", "Show bot info and supported formats"),
+    BotCommand("help", "Show bot help and usage examples"),
 ]
 
 
@@ -114,23 +115,40 @@ async def setup_bot_commands(application: Application) -> None:
     LOGGER.info("Telegram bot commands registered.")
 
 
-async def start_command(
+async def _send_bot_info(
     update: Update,
-    _context: ContextTypes.DEFAULT_TYPE,
+    command_name: str,
 ) -> None:
-    """Send the bot start message with supported formats and project links."""
+    """Send shared bot information for an informational command."""
     message = update.effective_message
     metadata = get_update_metadata(update)
 
     LOGGER.info(
-        "Command received: /start | %s",
+        "Command received: /%s | %s",
+        command_name,
         format_log_metadata(metadata),
     )
 
     if message is None:
         return
 
-    await message.reply_text(START_MESSAGE, parse_mode="HTML")
+    await message.reply_text(BOT_INFO_MESSAGE, parse_mode="HTML")
+
+
+async def start_command(
+    update: Update,
+    _context: ContextTypes.DEFAULT_TYPE,
+) -> None:
+    """Send bot information for the start command."""
+    await _send_bot_info(update, "start")
+
+
+async def help_command(
+    update: Update,
+    _context: ContextTypes.DEFAULT_TYPE,
+) -> None:
+    """Send bot information for the help command."""
+    await _send_bot_info(update, "help")
 
 
 async def handle_error(
@@ -167,6 +185,7 @@ def create_application() -> Application:
     supported_chats = filters.ChatType.PRIVATE | filters.ChatType.GROUPS
 
     application.add_handler(CommandHandler("start", start_command))
+    application.add_handler(CommandHandler("help", help_command))
     application.add_handler(
         CallbackQueryHandler(
             handle_delete_crypto_response,
