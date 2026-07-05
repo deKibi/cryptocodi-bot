@@ -6,11 +6,17 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Final, Optional
 
+# Custom Modules
+from calculator.compact_number_normalizer import (
+    NUMBER_LITERAL_REGEX,
+    normalize_number_separators,
+)
+
 
 # Crypto amount pattern
 THOUSAND_MULTIPLIER: Final[Decimal] = Decimal("1000")
 CRYPTO_AMOUNT_PATTERN: Final[re.Pattern[str]] = re.compile(
-    r"(?<![\w.,:-])(?P<amount>\d+(?:[.,]\d+)?)"
+    rf"(?<![\w.,:-])(?P<amount>{NUMBER_LITERAL_REGEX})"
     r"(?:(?P<multiplier>k)\s+|\s*)"
     r"(?:\$)?"
     r"(?P<ticker>(?:(?<=[\s$])[A-Za-z]|[A-Za-z]{2,10}))(?!\w)",
@@ -31,7 +37,7 @@ def _parse_crypto_amount_match(
     match: re.Match[str],
 ) -> ParsedCryptoAmount:
     normalized_amount = Decimal(
-        match.group("amount").replace(",", ".")
+        normalize_number_separators(match.group("amount"))
     )
 
     if match.group("multiplier") is not None:

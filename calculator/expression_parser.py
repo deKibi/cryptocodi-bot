@@ -6,7 +6,10 @@ import re
 from typing import Final, Optional
 
 # Custom Modules
-from calculator.compact_number_normalizer import expand_compact_numbers
+from calculator.compact_number_normalizer import (
+    expand_compact_numbers,
+    normalize_number_separators,
+)
 
 
 # Expression parsing
@@ -57,7 +60,9 @@ def parse_expression(message_text: str) -> Optional[str]:
         return None
 
     normalized_expression = expand_compact_numbers(
-        message_text.strip().translate(ALTERNATIVE_OPERATORS)
+        normalize_number_separators(
+            message_text.strip().translate(ALTERNATIVE_OPERATORS)
+        )
     )
 
     if not normalized_expression:
