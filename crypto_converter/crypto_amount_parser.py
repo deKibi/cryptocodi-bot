@@ -51,29 +51,46 @@ def _parse_crypto_amount_match(
     )
 
 
+def _find_crypto_amount_matches(text: str) -> list[re.Match[str]]:
+    matches: list[re.Match[str]] = []
+
+    for match in CRYPTO_AMOUNT_PATTERN.finditer(text):
+        preceding_index = match.start() - 1
+
+        while preceding_index >= 0 and text[preceding_index].isspace():
+            preceding_index -= 1
+
+        if preceding_index >= 0 and text[preceding_index] == "$":
+            continue
+
+        matches.append(match)
+
+    return matches
+
+
 def parse_crypto_amount_from_text(
     text: str,
 ) -> Optional[ParsedCryptoAmount]:
     """Return the first potential cryptocurrency amount found in text."""
-    match = CRYPTO_AMOUNT_PATTERN.search(text)
+    matches = _find_crypto_amount_matches(text)
 
-    if match is None:
+    if not matches:
         return None
 
-    return _parse_crypto_amount_match(match)
+    return _parse_crypto_amount_match(matches[0])
 
 
 def parse_crypto_amounts_from_text(text: str) -> list[ParsedCryptoAmount]:
     """Return all potential cryptocurrency amounts found in text."""
     return [
         _parse_crypto_amount_match(match)
-        for match in CRYPTO_AMOUNT_PATTERN.finditer(text)
+        for match in _find_crypto_amount_matches(text)
     ]
 
 
 def contains_only_crypto_amounts(text: str) -> bool:
     """Return whether text consists only of crypto amounts and separators."""
-    matches = list(CRYPTO_AMOUNT_PATTERN.finditer(text))
+    matches = _find_crypto_amount_matches(text)
 
     if not matches:
         return False
