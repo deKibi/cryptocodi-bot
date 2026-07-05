@@ -16,6 +16,16 @@ COINGECKO_COIN_URL_TEMPLATE: Final[str] = (
     "https://www.coingecko.com/en/coins/{coin_id}"
 )
 DELETE_CRYPTO_RESPONSE_CALLBACK: Final[str] = "delete_response"
+MAX_COIN_NAME_BUTTON_LENGTH: Final[int] = 24
+
+
+def _get_chart_button_label(conversion: CryptoPriceConversion) -> str:
+    coin_name = conversion.coin_name.strip()
+
+    if not coin_name or len(coin_name) > MAX_COIN_NAME_BUTTON_LENGTH:
+        coin_name = conversion.ticker
+
+    return f"📈 {coin_name}"
 
 
 def build_crypto_conversion_keyboard(
@@ -34,11 +44,10 @@ def build_crypto_conversion_keyboard(
 
         added_coin_ids.add(conversion.coin_id)
         coin_id = quote(conversion.coin_id.strip(), safe="")
-        coin_name = conversion.coin_name.strip() or conversion.ticker
         keyboard.append(
             [
                 InlineKeyboardButton(
-                    text=f"📈 Графік {coin_name}",
+                    text=_get_chart_button_label(conversion),
                     url=COINGECKO_COIN_URL_TEMPLATE.format(coin_id=coin_id),
                 )
             ]
