@@ -171,6 +171,14 @@ def _format_24h_change(value: Decimal) -> str:
     return f"{rounded_value:+.2f}% за 24г"
 
 
+def _format_coin_label(conversion: CryptoPriceConversion) -> str:
+    coin_name = conversion.coin_name.strip() or conversion.ticker
+    return (
+        f"{html.escape(coin_name)} "
+        f"({html.escape(conversion.ticker.lower())})"
+    )
+
+
 def _format_crypto_conversion(
     conversion: CryptoPriceConversion,
     show_24h_change: bool,
@@ -178,15 +186,17 @@ def _format_crypto_conversion(
     amount = _format_decimal(conversion.amount)
     total_usd = _format_fiat_amount(conversion.total_usd)
     total_uah = _format_fiat_amount(conversion.total_uah)
+    coin_label = _format_coin_label(conversion)
+    amount_prefix = "" if conversion.amount == Decimal("1") else f"{amount} "
     change_text = ""
 
     if show_24h_change and conversion.usd_24h_change is not None:
-        change_text = f" ({_format_24h_change(conversion.usd_24h_change)})"
+        change_text = f" | {_format_24h_change(conversion.usd_24h_change)}"
 
     return (
-        f"{amount} {conversion.ticker}{change_text}:\n"
-        f"{total_usd} USD\n"
-        f"{total_uah} UAH"
+        f"{amount_prefix}{coin_label}{change_text}:\n"
+        f"{total_usd} usd\n"
+        f"{total_uah} uah"
     )
 
 
@@ -219,13 +229,14 @@ def format_crypto_calculation_response(
     amount = _format_decimal(conversion.amount)
     total_usd = _format_fiat_amount(conversion.total_usd)
     total_uah = _format_fiat_amount(conversion.total_uah)
-    ticker = html.escape(conversion.ticker)
+    coin_label = _format_coin_label(conversion)
+    amount_prefix = "" if conversion.amount == Decimal("1") else f"{amount} "
 
     return (
         f"<b>{html.escape(expression)} = </b><code>{amount}</code>\n"
-        f"<code>{amount} {ticker}</code>:\n"
-        f"<code>{total_usd} USD</code>\n"
-        f"<code>{total_uah} UAH</code>"
+        f"<code>{amount_prefix}{coin_label}</code>:\n"
+        f"<code>{total_usd} usd</code>\n"
+        f"<code>{total_uah} uah</code>"
     )
 
 
