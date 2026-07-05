@@ -6,7 +6,7 @@ from decimal import Decimal
 from typing import Optional
 
 # Custom Modules
-from crypto_converter.coin_ticker_resolver import resolve_coin
+from crypto_converter.coin_ticker_resolver import ResolvedCoin, resolve_coin
 from crypto_converter.coingecko_client import (
     CoinGeckoAPIError,
     get_coin_unit_price,
@@ -56,15 +56,24 @@ def convert_crypto_to_fiat(
     if amount <= 0:
         raise ValueError("amount must be greater than zero")
 
-    normalized_ticker = ticker.strip().upper()
-
-    if normalized_ticker == "UAH":
-        return _convert_uah_to_fiat(amount)
-
-    resolved_coin = resolve_coin(normalized_ticker)
+    resolved_coin = resolve_coin(ticker)
 
     if resolved_coin is None:
         return None
+
+    return convert_resolved_coin_to_fiat(amount, resolved_coin)
+
+
+def convert_resolved_coin_to_fiat(
+    amount: Decimal,
+    resolved_coin: ResolvedCoin,
+) -> CryptoPriceConversion:
+    """Convert an amount using already resolved canonical coin metadata."""
+    if amount <= 0:
+        raise ValueError("amount must be greater than zero")
+
+    if resolved_coin.ticker == "UAH":
+        return _convert_uah_to_fiat(amount)
 
     unit_price = get_coin_unit_price(resolved_coin.coin_id)
 

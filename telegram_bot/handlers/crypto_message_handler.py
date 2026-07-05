@@ -20,15 +20,15 @@ from crypto_calculator.crypto_calculator import (
     ZeroCryptoAmountError,
     calculate_crypto_expression,
 )
-from crypto_converter.coin_ticker_resolver import BLOCKED_TICKERS
+from crypto_converter.coin_ticker_resolver import BLOCKED_TICKERS, resolve_coin
 from crypto_converter.crypto_amount_parser import (
-    ParsedCryptoAmount,
-    contains_only_crypto_amounts,
-    parse_crypto_amounts_from_text,
+    ResolvedCryptoAmount,
+    contains_only_resolved_crypto_amounts,
+    resolve_crypto_amounts_from_text,
 )
 from crypto_converter.crypto_price_converter import (
     CryptoPriceConversion,
-    convert_crypto_to_fiat,
+    convert_resolved_coin_to_fiat,
 )
 from crypto_converter.usage_limiter import (
     CoinGeckoDailyRequestLimitExceeded,
@@ -243,19 +243,26 @@ def format_crypto_calculation_response(
 def _get_unique_crypto_amounts(
     message_text: str,
     allow_embedded_usdt: bool,
-) -> list[ParsedCryptoAmount]:
-    unique_crypto_amounts: list[ParsedCryptoAmount] = []
+) -> list[ResolvedCryptoAmount]:
+    unique_crypto_amounts: list[ResolvedCryptoAmount] = []
     seen_pairs: set[tuple[Decimal, str]] = set()
-    is_conversion_only = contains_only_crypto_amounts(message_text)
+    resolved_crypto_amounts = resolve_crypto_amounts_from_text(message_text)
+    is_conversion_only = contains_only_resolved_crypto_amounts(
+        message_text,
+        resolved_crypto_amounts,
+    )
 
-    for parsed_crypto_amount in parse_crypto_amounts_from_text(message_text):
-        pair = (parsed_crypto_amount.amount, parsed_crypto_amount.ticker)
+    for resolved_crypto_amount in resolved_crypto_amounts:
+        pair = (
+            resolved_crypto_amount.amount,
+            resolved_crypto_amount.coin.coin_id,
+        )
 
         if (
-            parsed_crypto_amount.ticker in BLOCKED_TICKERS
-            or parsed_crypto_amount.amount == 0
+            resolved_crypto_amount.coin.ticker in BLOCKED_TICKERS
+            or resolved_crypto_amount.amount == 0
             or (
-                parsed_crypto_amount.ticker == "USDT"
+                resolved_crypto_amount.coin.ticker == "USDT"
                 and not allow_embedded_usdt
                 and not is_conversion_only
             )
@@ -264,7 +271,7 @@ def _get_unique_crypto_amounts(
             continue
 
         seen_pairs.add(pair)
-        unique_crypto_amounts.append(parsed_crypto_amount)
+        unique_crypto_amounts.append(resolved_crypto_amount)
 
         if len(unique_crypto_amounts) == MAX_CRYPTO_PAIRS_PER_MESSAGE:
             break
@@ -408,25 +415,45 @@ async def handle_crypto_message(
         )
         return
 
-    if (
-        crypto_calculation is not None
-        and crypto_calculation.ticker not in BLOCKED_TICKERS
-    ):
-        parsed_crypto_amounts = [
-            ParsedCryptoAmount(
-                amount=crypto_calculation.amount,
-                ticker=crypto_calculation.ticker,
-                matched_text=crypto_calculation.matched_text,
-            )
-        ]
-    else:
-        crypto_calculation = None
-        parsed_crypto_amounts = _get_unique_crypto_amounts(
-            message_text,
-            allow_embedded_usdt=chat.type == ChatType.PRIVATE,
-        )
+    resolved_calculation_coin = None
 
-    if not parsed_crypto_amounts:
+    try:
+        if crypto_calculation is not None:
+            resolved_calculation_coin = await asyncio.to_thread(
+                resolve_coin,
+                crypto_calculation.ticker,
+            )
+
+        if resolved_calculation_coin is not None:
+            resolved_crypto_amounts = [
+                ResolvedCryptoAmount(
+                    amount=crypto_calculation.amount,
+                    coin=resolved_calculation_coin,
+                    matched_text=crypto_calculation.matched_text,
+                    start=0,
+                    end=len(message_text),
+                )
+            ]
+        else:
+            crypto_calculation = None
+            resolved_crypto_amounts = await asyncio.to_thread(
+                _get_unique_crypto_amounts,
+                message_text,
+                chat.type == ChatType.PRIVATE,
+            )
+    except CoinGeckoDailyRequestLimitExceeded:
+        metadata_text = format_log_metadata(get_update_metadata(update))
+        LOGGER.warning(
+            "Daily CoinGecko request limit reached during coin resolution | %s",
+            metadata_text,
+        )
+        await message.reply_text(
+            text=CRYPTO_DAILY_LIMIT_REACHED_MESSAGE,
+            do_quote=True,
+        )
+        return
+
+    if not resolved_crypto_amounts:
         forget_message_signature(
             context.bot_data,
             CRYPTO_MESSAGE_FEATURE,
@@ -437,8 +464,11 @@ async def handle_crypto_message(
 
     if crypto_calculation is None:
         crypto_signature = tuple(
-            (parsed_crypto_amount.amount, parsed_crypto_amount.ticker)
-            for parsed_crypto_amount in parsed_crypto_amounts
+            (
+                resolved_crypto_amount.amount,
+                resolved_crypto_amount.coin.coin_id,
+            )
+            for resolved_crypto_amount in resolved_crypto_amounts
         )
     else:
         crypto_signature = (
@@ -447,7 +477,7 @@ async def handle_crypto_message(
                 "".join(
                     crypto_calculation.calculation_expression.split()
                 ),
-                crypto_calculation.ticker,
+                resolved_calculation_coin.coin_id,
             ),
         )
 
@@ -461,7 +491,7 @@ async def handle_crypto_message(
         return
 
     converted_matches: list[
-        tuple[ParsedCryptoAmount, CryptoPriceConversion]
+        tuple[ResolvedCryptoAmount, CryptoPriceConversion]
     ] = []
     metadata = get_update_metadata(update)
     metadata_text = format_log_metadata(metadata)
@@ -475,7 +505,7 @@ async def handle_crypto_message(
     if not isinstance(chat_id, int):
         chat_id = None
 
-    for parsed_crypto_amount in parsed_crypto_amounts:
+    for resolved_crypto_amount in resolved_crypto_amounts:
         if not crypto_usage_limiter.try_acquire_conversion_attempt(
             user_id=user_id,
             chat_id=chat_id,
@@ -489,9 +519,9 @@ async def handle_crypto_message(
 
         try:
             conversion = await asyncio.to_thread(
-                convert_crypto_to_fiat,
-                parsed_crypto_amount.amount,
-                parsed_crypto_amount.ticker,
+                convert_resolved_coin_to_fiat,
+                resolved_crypto_amount.amount,
+                resolved_crypto_amount.coin,
             )
         except CoinGeckoDailyRequestLimitExceeded:
             crypto_usage_limiter.release_conversion_attempt(
@@ -511,28 +541,27 @@ async def handle_crypto_message(
             )
             raise
 
-        if conversion is not None:
-            if not crypto_usage_limiter.try_complete_conversion(
-                user_id=user_id,
-                chat_id=chat_id,
-            ):
-                limit_reached = True
-                LOGGER.warning(
-                    "Daily crypto conversion limit reached | %s",
-                    metadata_text,
-                )
-                break
+        if not crypto_usage_limiter.try_complete_conversion(
+            user_id=user_id,
+            chat_id=chat_id,
+        ):
+            limit_reached = True
+            LOGGER.warning(
+                "Daily crypto conversion limit reached | %s",
+                metadata_text,
+            )
+            break
 
-            converted_matches.append((parsed_crypto_amount, conversion))
+        converted_matches.append((resolved_crypto_amount, conversion))
 
     if converted_matches:
         conversions = [
             conversion
-            for _parsed_crypto_amount, conversion in converted_matches
+            for _resolved_crypto_amount, conversion in converted_matches
         ]
         matched_texts = [
-            parsed_crypto_amount.matched_text
-            for parsed_crypto_amount, _conversion in converted_matches
+            resolved_crypto_amount.matched_text
+            for resolved_crypto_amount, _conversion in converted_matches
         ]
 
         LOGGER.info(
@@ -546,16 +575,16 @@ async def handle_crypto_message(
                 "chat_type": metadata["chat_type"],
                 "matches": [
                     {
-                        "matched_text": parsed_crypto_amount.matched_text,
-                        "parsed_amount": str(parsed_crypto_amount.amount),
-                        "parsed_ticker": parsed_crypto_amount.ticker,
+                        "matched_text": resolved_crypto_amount.matched_text,
+                        "parsed_amount": str(resolved_crypto_amount.amount),
+                        "parsed_ticker": resolved_crypto_amount.coin.ticker,
                         "coin_id": conversion.coin_id,
                         "converted_amounts": {
                             "usd": str(conversion.total_usd),
                             "uah": str(conversion.total_uah),
                         },
                     }
-                    for parsed_crypto_amount, conversion in converted_matches
+                    for resolved_crypto_amount, conversion in converted_matches
                 ],
             }
         )

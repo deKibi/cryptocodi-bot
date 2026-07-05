@@ -24,6 +24,9 @@ COINGECKO_SEARCH_URL: Final[str] = (
 COINGECKO_MARKETS_URL: Final[str] = (
     "https://api.coingecko.com/api/v3/coins/markets"
 )
+COINGECKO_COINS_LIST_URL: Final[str] = (
+    "https://api.coingecko.com/api/v3/coins/list"
+)
 REQUEST_TIMEOUT_SECONDS: Final[int] = 10
 
 
@@ -44,6 +47,7 @@ class CoinGeckoSearchCoin:
     coin_id: str
     symbol: str
     name: str
+    market_cap_rank: Optional[int] = None
 
 
 class CoinGeckoAPIError(RuntimeError):
@@ -149,19 +153,40 @@ def _parse_coins(coins_data: list[object]) -> list[CoinGeckoSearchCoin]:
         coin_id = coin_data.get("id")
         symbol = coin_data.get("symbol")
         name = coin_data.get("name")
+        market_cap_rank = coin_data.get("market_cap_rank")
 
         if not all(isinstance(value, str) for value in (coin_id, symbol, name)):
             continue
+
+        if isinstance(market_cap_rank, bool) or not isinstance(
+            market_cap_rank,
+            (int, type(None)),
+        ):
+            market_cap_rank = None
 
         coins.append(
             CoinGeckoSearchCoin(
                 coin_id=coin_id,
                 symbol=symbol,
                 name=name,
+                market_cap_rank=market_cap_rank,
             )
         )
 
     return coins
+
+
+def get_coin_catalog() -> list[CoinGeckoSearchCoin]:
+    """Return all CoinGecko coin IDs, symbols, and names."""
+    response_data = _get_response_data(
+        url=COINGECKO_COINS_LIST_URL,
+        params={"include_platform": "false"},
+    )
+
+    if not isinstance(response_data, list):
+        raise CoinGeckoAPIError("CoinGecko returned an unexpected response")
+
+    return _parse_coins(response_data)
 
 
 def get_coins_by_symbol(symbol: str) -> list[CoinGeckoSearchCoin]:
