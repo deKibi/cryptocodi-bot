@@ -8,7 +8,7 @@ from decimal import ROUND_HALF_UP, Decimal
 
 # Third-party Libraries
 from telegram import InlineKeyboardMarkup, Message, Update
-from telegram.constants import ParseMode
+from telegram.constants import ChatType, ParseMode
 from telegram.error import TelegramError
 from telegram.ext import ContextTypes
 
@@ -23,6 +23,7 @@ from crypto_calculator.crypto_calculator import (
 from crypto_converter.coin_ticker_resolver import BLOCKED_TICKERS
 from crypto_converter.crypto_amount_parser import (
     ParsedCryptoAmount,
+    contains_only_crypto_amounts,
     parse_crypto_amounts_from_text,
 )
 from crypto_converter.crypto_price_converter import (
@@ -230,9 +231,11 @@ def format_crypto_calculation_response(
 
 def _get_unique_crypto_amounts(
     message_text: str,
+    allow_embedded_usdt: bool,
 ) -> list[ParsedCryptoAmount]:
     unique_crypto_amounts: list[ParsedCryptoAmount] = []
     seen_pairs: set[tuple[Decimal, str]] = set()
+    is_conversion_only = contains_only_crypto_amounts(message_text)
 
     for parsed_crypto_amount in parse_crypto_amounts_from_text(message_text):
         pair = (parsed_crypto_amount.amount, parsed_crypto_amount.ticker)
@@ -240,6 +243,11 @@ def _get_unique_crypto_amounts(
         if (
             parsed_crypto_amount.ticker in BLOCKED_TICKERS
             or parsed_crypto_amount.amount == 0
+            or (
+                parsed_crypto_amount.ticker == "USDT"
+                and not allow_embedded_usdt
+                and not is_conversion_only
+            )
             or pair in seen_pairs
         ):
             continue
@@ -402,7 +410,10 @@ async def handle_crypto_message(
         ]
     else:
         crypto_calculation = None
-        parsed_crypto_amounts = _get_unique_crypto_amounts(message_text)
+        parsed_crypto_amounts = _get_unique_crypto_amounts(
+            message_text,
+            allow_embedded_usdt=chat.type == ChatType.PRIVATE,
+        )
 
     if not parsed_crypto_amounts:
         forget_message_signature(

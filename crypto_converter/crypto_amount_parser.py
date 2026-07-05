@@ -2,6 +2,7 @@
 
 # Standard Libraries
 import re
+import unicodedata
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Final, Optional
@@ -68,6 +69,30 @@ def parse_crypto_amounts_from_text(text: str) -> list[ParsedCryptoAmount]:
         _parse_crypto_amount_match(match)
         for match in CRYPTO_AMOUNT_PATTERN.finditer(text)
     ]
+
+
+def contains_only_crypto_amounts(text: str) -> bool:
+    """Return whether text consists only of crypto amounts and separators."""
+    matches = list(CRYPTO_AMOUNT_PATTERN.finditer(text))
+
+    if not matches:
+        return False
+
+    unmatched_parts: list[str] = []
+    previous_match_end = 0
+
+    for match in matches:
+        unmatched_parts.append(text[previous_match_end:match.start()])
+        previous_match_end = match.end()
+
+    unmatched_parts.append(text[previous_match_end:])
+
+    return all(
+        character.isspace()
+        or unicodedata.category(character).startswith("P")
+        for part in unmatched_parts
+        for character in part
+    )
 
 
 if __name__ == "__main__":
