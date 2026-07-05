@@ -16,7 +16,7 @@ from calculator.expression_parser import (
 
 # Crypto calculations
 CRYPTO_CALCULATION_PATTERN: Final[re.Pattern[str]] = re.compile(
-    r"\s*(?P<expression>[\d\s.kK()+\-*/×÷−xх]+?)"
+    r"\s*(?P<expression>[\d\s.,kK()+\-*/×÷−xх]+?)"
     r"\s+(?P<ticker>[A-Za-z]{2,10})\s*"
 )
 EXPLICIT_OPERATOR_PATTERN: Final[re.Pattern[str]] = re.compile(
