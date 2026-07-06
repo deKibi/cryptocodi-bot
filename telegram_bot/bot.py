@@ -3,10 +3,11 @@
 # Standard Libraries
 import logging
 import time
+from html import escape
 from typing import Final, Optional
 
 # Third-party Libraries
-from telegram import BotCommand, Update
+from telegram import BotCommand, Chat, Update, User
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
@@ -71,6 +72,7 @@ BOT_INFO_MESSAGE = """Привіт! Це @cryptocodi bot.
 BOT_COMMANDS = [
     BotCommand("start", "Show bot info and supported formats"),
     BotCommand("help", "Show bot help and usage examples"),
+    BotCommand("id", "Show chat and user IDs"),
 ]
 
 
@@ -86,6 +88,46 @@ def _format_optional_limit(limit: Optional[int]) -> str:
         return "not configured"
 
     return str(limit)
+
+
+def _format_id_value(
+    value: Optional[object],
+    prefix: str = "",
+    monospace: bool = False,
+) -> str:
+    """Format an optional Telegram field for the ID command response."""
+    if value is None or value == "":
+        return "-"
+
+    formatted_value = f"{escape(prefix)}{escape(str(value))}"
+
+    if monospace:
+        return f"<code>{formatted_value}</code>"
+
+    return formatted_value
+
+
+def _format_id_message(chat: Chat, user: User) -> str:
+    """Format current chat and user details for the ID command."""
+    return "\n".join(
+        (
+            "<b>CHAT:</b>",
+            f"  <b>title:</b> {_format_id_value(chat.title)}",
+            f"  <b>type:</b> {_format_id_value(chat.type, monospace=True)}",
+            "  <b>username:</b> "
+            f"{_format_id_value(chat.username, prefix='@')}",
+            f"  <b>ID:</b> {_format_id_value(chat.id, monospace=True)}",
+            "",
+            "<b>YOU:</b>",
+            f"  <b>first name:</b> {_format_id_value(user.first_name)}",
+            f"  <b>last name:</b> {_format_id_value(user.last_name)}",
+            "  <b>username:</b> "
+            f"{_format_id_value(user.username, prefix='@')}",
+            "  <b>language:</b> "
+            f"{_format_id_value(user.language_code, monospace=True)}",
+            f"  <b>ID:</b> {_format_id_value(user.id, monospace=True)}",
+        )
+    )
 
 
 def log_startup_configuration() -> None:
@@ -151,6 +193,30 @@ async def help_command(
     await _send_bot_info(update, "help")
 
 
+async def id_command(
+    update: Update,
+    _context: ContextTypes.DEFAULT_TYPE,
+) -> None:
+    """Send information about the current chat and command author."""
+    message = update.effective_message
+    chat = update.effective_chat
+    user = update.effective_user
+    metadata = get_update_metadata(update)
+
+    LOGGER.info(
+        "Command received: /id | %s",
+        format_log_metadata(metadata),
+    )
+
+    if message is None or chat is None or user is None:
+        return
+
+    await message.reply_text(
+        _format_id_message(chat=chat, user=user),
+        parse_mode="HTML",
+    )
+
+
 async def handle_error(
     update: object,
     context: ContextTypes.DEFAULT_TYPE,
@@ -186,6 +252,9 @@ def create_application() -> Application:
 
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(
+        CommandHandler("id", id_command, filters=supported_chats)
+    )
     application.add_handler(
         CallbackQueryHandler(
             handle_delete_crypto_response,
