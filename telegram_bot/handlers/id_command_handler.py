@@ -3,10 +3,11 @@
 # Standard Libraries
 import logging
 import re
+from html import escape
 from typing import Final, Optional
 
 # Third-party Libraries
-from telegram import Update
+from telegram import Chat, Update, User
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
@@ -71,6 +72,49 @@ def _parse_user_id_argument(
     return "user", user_id
 
 
+def _format_optional_value(
+    value: Optional[object],
+    prefix: str = "",
+    monospace: bool = False,
+) -> str:
+    if value is None or value == "":
+        return "-"
+
+    formatted_value = f"{escape(prefix)}{escape(str(value))}"
+
+    if monospace:
+        return f"<code>{formatted_value}</code>"
+
+    return formatted_value
+
+
+def _format_current_id_response(chat: Chat, user: User) -> str:
+    creation_month = estimate_account_creation_month(user.id)
+
+    return "\n".join(
+        (
+            "<b>CHAT:</b>",
+            f"  <b>title:</b> {_format_optional_value(chat.title)}",
+            "  <b>type:</b> "
+            f"{_format_optional_value(chat.type, monospace=True)}",
+            "  <b>username:</b> "
+            f"{_format_optional_value(chat.username, prefix='@')}",
+            f"  <b>ID:</b> {_format_optional_value(chat.id, monospace=True)}",
+            "",
+            "<b>YOU:</b>",
+            f"  <b>first name:</b> {_format_optional_value(user.first_name)}",
+            f"  <b>last name:</b> {_format_optional_value(user.last_name)}",
+            "  <b>username:</b> "
+            f"{_format_optional_value(user.username, prefix='@')}",
+            "  <b>language:</b> "
+            f"{_format_optional_value(user.language_code, monospace=True)}",
+            f"  <b>ID:</b> {_format_optional_value(user.id, monospace=True)}",
+            "⭐<b>Creation date</b>⭐ <b>(approximately):</b> "
+            f"{_format_optional_value(creation_month, monospace=True)}",
+        )
+    )
+
+
 def _format_user_id_response(user_id: int) -> str:
     creation_month = estimate_account_creation_month(user_id)
 
@@ -88,9 +132,10 @@ async def handle_id_command(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
 ) -> None:
-    """Reply with an approximate creation date for a Telegram user ID."""
+    """Reply with current IDs or an estimated creation date by user ID."""
     message = update.effective_message
     chat = update.effective_chat
+    user = update.effective_user
     metadata_text = format_log_metadata(get_update_metadata(update))
 
     LOGGER.info("Command received: /id | %s", metadata_text)
@@ -99,10 +144,6 @@ async def handle_id_command(
         return
 
     argument_type, user_id = _parse_user_id_argument(context.args)
-
-    if argument_type == "empty":
-        return
-
     related_reply_message_id = get_related_reply_message_id(
         context.bot_data,
         ID_LOOKUP_FEATURE,
@@ -110,7 +151,24 @@ async def handle_id_command(
         message.message_id,
     )
 
-    if argument_type == "invalid":
+    if argument_type == "empty":
+        if user is None:
+            return
+
+        response_text = _format_current_id_response(chat, user)
+        response_signature = (
+            "current",
+            chat.title,
+            chat.type,
+            chat.username,
+            chat.id,
+            user.first_name,
+            user.last_name,
+            user.username,
+            user.language_code,
+            user.id,
+        )
+    elif argument_type == "invalid":
         if related_reply_message_id is not None:
             return
 

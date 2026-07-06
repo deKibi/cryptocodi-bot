@@ -72,7 +72,7 @@ BOT_INFO_MESSAGE = """Привіт! Це @cryptocodi bot.
 BOT_COMMANDS = [
     BotCommand("start", "Show bot info and supported formats"),
     BotCommand("help", "Show bot help and usage examples"),
-    BotCommand("id", "Estimate account creation date by ID"),
+    BotCommand("id", "Show IDs or estimate account creation date"),
 ]
 
 
