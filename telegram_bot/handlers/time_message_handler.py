@@ -15,6 +15,7 @@ from time_converter.time_utils import (
     convert_utc_to_kyiv,
 )
 from time_converter.utc_time_parser import parse_utc_time_from_text
+from telegram_bot.localization.messages import get_message
 from telegram_bot.state.message_reply_tracker import (
     get_related_reply_message_id,
     remember_related_reply_message_id,
@@ -44,13 +45,13 @@ def format_time_response(utc_datetime: datetime) -> str:
     )
     continuation_indent = " " * len(first_line_prefix)
 
-    return (
-        "<code>"
-        f"{first_line_prefix}┬─> {kyiv_datetime:%H:%M} KIEV\n"
-        f"{continuation_indent}├─> {central_europe_datetime:%H:%M} CET\n"
-        f"{continuation_indent}└─> {utc_datetime:%H:%M} UTC\n\n"
-        "UTC — UTC (UTC+00:00)"
-        "</code>"
+    return get_message(
+        "time_response",
+        first_line_prefix=first_line_prefix,
+        continuation_indent=continuation_indent,
+        kyiv_time=f"{kyiv_datetime:%H:%M}",
+        central_europe_time=f"{central_europe_datetime:%H:%M}",
+        utc_time=f"{utc_datetime:%H:%M}",
     )
 
 

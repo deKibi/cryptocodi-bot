@@ -45,6 +45,7 @@ from telegram_bot.keyboards.crypto_conversion_keyboard import (
     DELETE_CRYPTO_RESPONSE_CALLBACK,
 )
 from telegram_bot.keyboards.id_keyboard import FIND_DIFFERENT_ID_CALLBACK
+from telegram_bot.localization.messages import get_message
 from telegram_bot.logging_config import (
     configure_logging,
     format_log_metadata,
@@ -55,40 +56,10 @@ from telegram_bot.logging_config import (
 LOGGER = logging.getLogger(__name__)
 STARTUP_DELAY_SECONDS: Final[int] = 3
 
-BOT_INFO_MESSAGE = """Привіт! Це @cryptocodi bot.
-
-<b>Що бот вміє зараз:</b>
-• знаходити UTC-час у повідомленнях і переводити його в Kyiv та CET (центральноєвропейський час, Відень)
-• знаходити суми криптовалют і приблизно переводити їх в USD та UAH
-• показувати зміну курсу за 24 години та відкривати графіки монет
-• обчислювати прості математичні й криптовалютні вирази
-• показувати ID поточного чату й користувача та приблизну дату створення Telegram-акаунта
-• у приватному чаті відкривати меню вибору іншого користувача, бота, групи або каналу
-
-<b>Приклади:</b>
-
-<code>10:00 UTC</code>
-<code>0.3 BNB</code>
-<code>25k USDT</code>
-<code>1 bitcoin</code>
-<code>(10 + 5) / 3</code>
-<code>3*2 BNB</code>
-<code>/id</code>
-<code>/id 603206097</code>
-
-<b>Команди:</b>
-<code>/start</code> або <code>/help</code> — переглянути це повідомлення
-<code>/id</code> — переглянути ID чату й користувача або приблизну дату створення за ID
-
-Автор: @deKibi
-Канал: @cryptocodi
-
-Вихідний код: <a href="https://github.com/deKibi/cryptocodi-bot">GitHub</a>"""
-
 BOT_COMMANDS = [
-    BotCommand("start", "Show bot info and supported formats"),
-    BotCommand("help", "Show bot help and usage examples"),
-    BotCommand("id", "Show IDs or estimate account creation date"),
+    BotCommand("start", get_message("command_start")),
+    BotCommand("help", get_message("command_help")),
+    BotCommand("id", get_message("command_id")),
 ]
 
 
@@ -150,7 +121,7 @@ async def _send_bot_info(
     if message is None:
         return
 
-    await message.reply_text(BOT_INFO_MESSAGE, parse_mode="HTML")
+    await message.reply_text(get_message("bot_info"), parse_mode="HTML")
 
 
 async def start_command(

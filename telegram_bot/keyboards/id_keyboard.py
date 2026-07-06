@@ -13,6 +13,9 @@ from telegram import (
     ReplyKeyboardMarkup,
 )
 
+# Custom Modules
+from telegram_bot.localization.messages import get_message
+
 
 # ID lookup keyboards
 FIND_DIFFERENT_ID_CALLBACK: Final[str] = "find_different_id"
@@ -28,7 +31,7 @@ def build_find_different_id_keyboard() -> InlineKeyboardMarkup:
         [
             [
                 InlineKeyboardButton(
-                    text="Find a different ID",
+                    text=get_message("find_different_id_button"),
                     callback_data=FIND_DIFFERENT_ID_CALLBACK,
                 )
             ]
@@ -42,21 +45,21 @@ def build_entity_selection_keyboard() -> ReplyKeyboardMarkup:
         keyboard=[
             [
                 KeyboardButton(
-                    text="Chat",
+                    text=get_message("select_chat_button"),
                     request_chat=KeyboardButtonRequestChat(
                         request_id=CHAT_REQUEST_ID,
                         chat_is_channel=False,
                     ),
                 ),
                 KeyboardButton(
-                    text="Channel",
+                    text=get_message("select_channel_button"),
                     request_chat=KeyboardButtonRequestChat(
                         request_id=CHANNEL_REQUEST_ID,
                         chat_is_channel=True,
                     ),
                 ),
                 KeyboardButton(
-                    text="User",
+                    text=get_message("select_user_button"),
                     request_users=KeyboardButtonRequestUsers(
                         request_id=USER_REQUEST_ID,
                         user_is_bot=False,
@@ -64,7 +67,7 @@ def build_entity_selection_keyboard() -> ReplyKeyboardMarkup:
                     ),
                 ),
                 KeyboardButton(
-                    text="Bot",
+                    text=get_message("select_bot_button"),
                     request_users=KeyboardButtonRequestUsers(
                         request_id=BOT_REQUEST_ID,
                         user_is_bot=True,
@@ -75,5 +78,5 @@ def build_entity_selection_keyboard() -> ReplyKeyboardMarkup:
         ],
         resize_keyboard=True,
         one_time_keyboard=True,
-        input_field_placeholder="Select an entity",
+        input_field_placeholder=get_message("select_entity_placeholder"),
     )

@@ -20,6 +20,7 @@ from telegram_bot.keyboards.id_keyboard import (
     build_entity_selection_keyboard,
     build_find_different_id_keyboard,
 )
+from telegram_bot.localization.messages import get_message
 from telegram_bot.logging_config import (
     format_log_metadata,
     get_update_metadata,
@@ -45,17 +46,6 @@ POSITIVE_USER_ID_PATTERN: Final[re.Pattern[str]] = re.compile(
 )
 NEGATIVE_ID_PATTERN: Final[re.Pattern[str]] = re.compile(
     r"-[1-9][0-9]*"
-)
-INVALID_USER_ID_MESSAGE: Final[str] = (
-    "Вкажіть один додатний цілий ID користувача Telegram."
-)
-GROUP_ID_MESSAGE: Final[str] = (
-    "Підтримуються лише додатні ID користувачів Telegram. "
-    "ID чатів чи груп не підтримуються."
-)
-ENTITY_SELECTION_PROMPT: Final[str] = (
-    "{user_mention}, select an entity (Chat, Channel, User or Bot) "
-    "to retrieve its ID"
 )
 
 
@@ -90,62 +80,74 @@ def _format_optional_value(
     monospace: bool = False,
 ) -> str:
     if value is None or value == "":
-        return "-"
+        return get_message("missing_value")
 
     formatted_value = f"{escape(prefix)}{escape(str(value))}"
 
     if monospace:
-        return f"<code>{formatted_value}</code>"
+        return get_message(
+            "monospace_value",
+            value=formatted_value,
+        )
 
     return formatted_value
 
 
-def _format_current_id_response(chat: Chat, user: User) -> str:
+def _format_current_id_response(
+    chat: Chat,
+    user: User,
+) -> str:
     creation_month = estimate_account_creation_month(user.id)
 
-    return "\n".join(
-        (
-            "<b>CHAT:</b>",
-            f"  <b>title:</b> {_format_optional_value(chat.title)}",
-            "  <b>type:</b> "
-            f"{_format_optional_value(chat.type, monospace=True)}",
-            "  <b>username:</b> "
-            f"{_format_optional_value(chat.username, prefix='@')}",
-            f"  <b>ID:</b> {_format_optional_value(chat.id, monospace=True)}",
-            "",
-            "<b>YOU:</b>",
-            f"  <b>first name:</b> {_format_optional_value(user.first_name)}",
-            f"  <b>last name:</b> {_format_optional_value(user.last_name)}",
-            "  <b>username:</b> "
-            f"{_format_optional_value(user.username, prefix='@')}",
-            "  <b>language:</b> "
-            f"{_format_optional_value(user.language_code, monospace=True)}",
-            f"  <b>ID:</b> {_format_optional_value(user.id, monospace=True)}",
-            "⭐<b>Creation date</b>⭐ <b>(approximately):</b> "
-            f"{_format_optional_value(creation_month, monospace=True)}",
-        )
+    return get_message(
+        "current_id_response",
+        chat_title=_format_optional_value(chat.title),
+        chat_type=_format_optional_value(chat.type, monospace=True),
+        chat_username=_format_optional_value(
+            chat.username,
+            prefix="@",
+        ),
+        chat_id=_format_optional_value(
+            chat.id,
+            monospace=True,
+        ),
+        first_name=_format_optional_value(user.first_name),
+        last_name=_format_optional_value(user.last_name),
+        user_username=_format_optional_value(
+            user.username,
+            prefix="@",
+        ),
+        language_code=_format_optional_value(
+            user.language_code,
+            monospace=True,
+        ),
+        user_id=_format_optional_value(
+            user.id,
+            monospace=True,
+        ),
+        creation_month=_format_optional_value(
+            creation_month,
+            monospace=True,
+        ),
     )
 
 
-def _format_user_id_response(user_id: int) -> str:
-    creation_month = estimate_account_creation_month(user_id)
-
-    return "\n".join(
-        (
-            "<b>USER:</b>",
-            f"  <b>ID:</b> <code>{user_id}</code>",
-            "  ⭐<b>Creation date</b>⭐ <b>(approximately):</b> "
-            f"<code>{creation_month}</code>",
-        )
+def _format_user_id_response(
+    user_id: int,
+) -> str:
+    return get_message(
+        "user_id_response",
+        user_id=user_id,
+        creation_month=estimate_account_creation_month(user_id),
     )
 
 
-def _format_chat_id_response(chat_id: int) -> str:
-    return "\n".join(
-        (
-            "<b>CHAT:</b>",
-            f"  <b>ID:</b> <code>{chat_id}</code>",
-        )
+def _format_chat_id_response(
+    chat_id: int,
+) -> str:
+    return get_message(
+        "chat_id_response",
+        chat_id=chat_id,
     )
 
 
@@ -174,10 +176,13 @@ async def handle_find_different_id_callback(
         return
 
     user = callback_query.from_user
-    user_mention = (
-        f'<a href="tg://user?id={user.id}">{escape(user.first_name)}</a>'
+    user_mention = get_message(
+        "user_mention",
+        user_id=user.id,
+        name=escape(user.first_name),
     )
-    prompt_text = ENTITY_SELECTION_PROMPT.format(
+    prompt_text = get_message(
+        "entity_selection_prompt",
         user_mention=user_mention,
     )
 
@@ -305,10 +310,10 @@ async def handle_id_command(
         if related_reply_message_id is not None:
             return
 
-        response_text = INVALID_USER_ID_MESSAGE
+        response_text = get_message("invalid_user_id")
         response_signature = ("invalid",)
     elif argument_type == "group":
-        response_text = GROUP_ID_MESSAGE
+        response_text = get_message("positive_user_ids_only")
         response_signature = ("group",)
     else:
         if user_id is None:

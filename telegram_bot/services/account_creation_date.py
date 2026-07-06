@@ -5,6 +5,9 @@ from bisect import bisect_left
 from datetime import date
 from typing import Final
 
+# Custom Modules
+from telegram_bot.localization.messages import get_message
+
 
 # Approximation data
 # Initial historical samples are adapted from the MIT-licensed GetIDs dataset:
@@ -26,37 +29,33 @@ _ACCOUNT_AGE_ANCHORS: Final[tuple[tuple[int, date], ...]] = (
 _ANCHOR_IDS: Final[tuple[int, ...]] = tuple(
     user_id for user_id, _creation_date in _ACCOUNT_AGE_ANCHORS
 )
-_MONTH_NAMES: Final[tuple[str, ...]] = (
-    "",
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
-)
 
 
-def _format_month_year(creation_date: date) -> str:
-    return f"{_MONTH_NAMES[creation_date.month]} {creation_date.year}"
+def _format_month_year(
+    creation_date: date,
+) -> str:
+    month_name = get_message(f"month_{creation_date.month}")
+    return f"{month_name} {creation_date.year}"
 
 
-def estimate_account_creation_month(user_id: int) -> str:
+def estimate_account_creation_month(
+    user_id: int,
+) -> str:
     """Estimate a Telegram account creation month from its numeric ID."""
     first_id, first_date = _ACCOUNT_AGE_ANCHORS[0]
     last_id, last_date = _ACCOUNT_AGE_ANCHORS[-1]
 
     if user_id < first_id:
-        return f"before {_format_month_year(first_date)}"
+        return get_message(
+            "date_before",
+            month_year=_format_month_year(first_date),
+        )
 
     if user_id > last_id:
-        return f"after {_format_month_year(last_date)}"
+        return get_message(
+            "date_after",
+            month_year=_format_month_year(last_date),
+        )
 
     upper_index = bisect_left(_ANCHOR_IDS, user_id)
     upper_id, upper_date = _ACCOUNT_AGE_ANCHORS[upper_index]
@@ -71,4 +70,6 @@ def estimate_account_creation_month(user_id: int) -> str:
         id_position * date_range_days
     )
 
-    return _format_month_year(date.fromordinal(estimated_ordinal))
+    return _format_month_year(
+        date.fromordinal(estimated_ordinal),
+    )
