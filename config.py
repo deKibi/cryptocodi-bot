@@ -132,6 +132,23 @@ def _warn_if_priority_config_incomplete(
         )
 
 
+def _warn_if_priority_limit_below_standard(
+    priority_name: str,
+    priority_limit: Optional[int],
+    standard_limit: int,
+) -> None:
+    if priority_limit is None or priority_limit >= standard_limit:
+        return
+
+    LOGGER.warning(
+        "%s priority conversion limit (%d) is lower than the standard "
+        "user conversion limit (%d); the standard limit will be used.",
+        priority_name,
+        priority_limit,
+        standard_limit,
+    )
+
+
 TELEGRAM_BOT_TOKEN: Final[str] = get_required_env(
     variable_name="TELEGRAM_BOT_TOKEN",
 )
@@ -177,16 +194,26 @@ PRIORITY_USER_CONVERT_LIMIT: Final[Optional[int]] = (
 
 
 def log_configuration_warnings() -> None:
-    """Log warnings for incomplete optional priority configuration."""
+    """Log warnings for invalid optional priority configuration."""
     _warn_if_priority_config_incomplete(
         priority_name="Group",
         priority_configured=bool(PRIORITY_GROUPS_ID),
         priority_limit=PRIORITY_GROUP_CONVERT_LIMIT,
     )
+    _warn_if_priority_limit_below_standard(
+        priority_name="Group",
+        priority_limit=PRIORITY_GROUP_CONVERT_LIMIT,
+        standard_limit=CRYPTO_CONVERSIONS_PER_USER_PER_DAY,
+    )
     _warn_if_priority_config_incomplete(
         priority_name="User",
         priority_configured=bool(PRIORITY_USERS_ID),
         priority_limit=PRIORITY_USER_CONVERT_LIMIT,
+    )
+    _warn_if_priority_limit_below_standard(
+        priority_name="User",
+        priority_limit=PRIORITY_USER_CONVERT_LIMIT,
+        standard_limit=CRYPTO_CONVERSIONS_PER_USER_PER_DAY,
     )
 
 
