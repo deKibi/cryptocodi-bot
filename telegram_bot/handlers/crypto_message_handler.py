@@ -37,6 +37,7 @@ from crypto_converter.usage_limiter import (
 from telegram_bot.keyboards.crypto_conversion_keyboard import (
     build_crypto_conversion_keyboard,
 )
+from telegram_bot.localization.messages import get_message
 from telegram_bot.logging_config import (
     format_log_metadata,
     get_update_metadata,
@@ -57,15 +58,6 @@ from telegram_bot.state.message_signature_tracker import (
 
 
 LOGGER = logging.getLogger(__name__)
-PERSONAL_CRYPTO_LIMIT_REACHED_MESSAGE = (
-    "Ліміт криптоконвертацій на сьогодні вичерпано. "
-    "Спробуйте завтра."
-)
-GLOBAL_CRYPTO_LIMIT_REACHED_MESSAGE = (
-    "Загальний ліміт криптоконвертацій вичерпано. "
-    "Спробуйте пізніше."
-)
-CRYPTO_CALCULATION_ERROR_MESSAGE = "Не вдалося обчислити вираз."
 CRYPTO_MESSAGE_FEATURE = "crypto"
 CRYPTO_RESPONSE_FEATURE = "crypto_response"
 
@@ -173,14 +165,18 @@ def _format_24h_change(value: Decimal) -> str:
         Decimal("0.01"),
         rounding=ROUND_HALF_UP,
     )
-    return f"{rounded_value:+.2f}% за 24г"
+    return get_message(
+        "crypto_24h_change",
+        change=f"{rounded_value:+.2f}",
+    )
 
 
 def _format_coin_label(conversion: CryptoPriceConversion) -> str:
     coin_name = conversion.coin_name.strip() or conversion.ticker
-    return (
-        f"{html.escape(coin_name)} "
-        f"({html.escape(conversion.ticker.lower())})"
+    return get_message(
+        "coin_label",
+        coin_name=html.escape(coin_name),
+        ticker=html.escape(conversion.ticker.lower()),
     )
 
 
@@ -196,12 +192,18 @@ def _format_crypto_conversion(
     change_text = ""
 
     if show_24h_change and conversion.usd_24h_change is not None:
-        change_text = f" | {_format_24h_change(conversion.usd_24h_change)}"
+        change_text = get_message(
+            "crypto_change_text",
+            change=_format_24h_change(conversion.usd_24h_change),
+        )
 
-    return (
-        f"{amount_prefix}{coin_label}{change_text}:\n"
-        f"{total_usd} usd\n"
-        f"{total_uah} uah"
+    return get_message(
+        "crypto_conversion",
+        amount_prefix=amount_prefix,
+        coin_label=coin_label,
+        change_text=change_text,
+        total_usd=total_usd,
+        total_uah=total_uah,
     )
 
 
@@ -222,7 +224,10 @@ def format_crypto_responses(
         for conversion in conversions
     )
 
-    return "<code>" + "\n\n".join(formatted_conversions) + "</code>"
+    return get_message(
+        "crypto_responses",
+        conversions="\n\n".join(formatted_conversions),
+    )
 
 
 def format_crypto_calculation_response(
@@ -237,11 +242,14 @@ def format_crypto_calculation_response(
     coin_label = _format_coin_label(conversion)
     amount_prefix = "" if conversion.amount == Decimal("1") else f"{amount} "
 
-    return (
-        f"<b>{html.escape(expression)} = </b><code>{amount}</code>\n"
-        f"<code>{amount_prefix}{coin_label}</code>:\n"
-        f"<code>{total_usd} usd</code>\n"
-        f"<code>{total_uah} uah</code>"
+    return get_message(
+        "crypto_calculation_response",
+        expression=html.escape(expression),
+        amount=amount,
+        amount_prefix=amount_prefix,
+        coin_label=coin_label,
+        total_usd=total_usd,
+        total_uah=total_uah,
     )
 
 
@@ -291,7 +299,8 @@ async def _send_or_update_crypto_calculation_error(
     metadata_text: str,
 ) -> None:
     source_message_id = message.message_id
-    response_signature = (CRYPTO_CALCULATION_ERROR_MESSAGE, ())
+    error_message = get_message("calculation_error")
+    response_signature = (error_message, ())
     related_reply_message_id = get_related_reply_message_id(
         context.bot_data,
         CRYPTO_MESSAGE_FEATURE,
@@ -301,7 +310,7 @@ async def _send_or_update_crypto_calculation_error(
 
     if related_reply_message_id is None:
         reply_message = await message.reply_text(
-            text=CRYPTO_CALCULATION_ERROR_MESSAGE,
+            text=error_message,
             do_quote=True,
         )
         remember_related_reply_message_id(
@@ -329,7 +338,7 @@ async def _send_or_update_crypto_calculation_error(
         await context.bot.edit_message_text(
             chat_id=chat_id,
             message_id=related_reply_message_id,
-            text=CRYPTO_CALCULATION_ERROR_MESSAGE,
+            text=error_message,
             reply_markup=InlineKeyboardMarkup([]),
         )
         remember_message_signature(
@@ -453,7 +462,7 @@ async def handle_crypto_message(
             metadata_text,
         )
         await message.reply_text(
-            text=GLOBAL_CRYPTO_LIMIT_REACHED_MESSAGE,
+            text=get_message("global_crypto_limit"),
             do_quote=True,
         )
         LOGGER.info(
@@ -507,6 +516,7 @@ async def handle_crypto_message(
     user_id = metadata["user_id"]
     chat_id = metadata["chat_id"]
     limit_reached_message: str | None = None
+    limit_scope: str | None = None
 
     if not isinstance(user_id, int):
         user_id = None
@@ -519,7 +529,8 @@ async def handle_crypto_message(
             user_id=user_id,
             chat_id=chat_id,
         ):
-            limit_reached_message = PERSONAL_CRYPTO_LIMIT_REACHED_MESSAGE
+            limit_reached_message = get_message("personal_crypto_limit")
+            limit_scope = "personal"
             LOGGER.warning(
                 "Personal crypto conversion limit reached | %s",
                 metadata_text,
@@ -537,7 +548,8 @@ async def handle_crypto_message(
                 user_id=user_id,
                 chat_id=chat_id,
             )
-            limit_reached_message = GLOBAL_CRYPTO_LIMIT_REACHED_MESSAGE
+            limit_reached_message = get_message("global_crypto_limit")
+            limit_scope = "global"
             LOGGER.warning(
                 "Global CoinGecko request limit reached | %s",
                 metadata_text,
@@ -558,7 +570,8 @@ async def handle_crypto_message(
                 user_id=user_id,
                 chat_id=chat_id,
             )
-            limit_reached_message = PERSONAL_CRYPTO_LIMIT_REACHED_MESSAGE
+            limit_reached_message = get_message("personal_crypto_limit")
+            limit_scope = "personal"
             LOGGER.warning(
                 "Personal crypto conversion limit reached while completing "
                 "conversion | %s",
@@ -690,14 +703,9 @@ async def handle_crypto_message(
             text=limit_reached_message,
             do_quote=True,
         )
-        limit_scope = (
-            "global"
-            if limit_reached_message == GLOBAL_CRYPTO_LIMIT_REACHED_MESSAGE
-            else "personal"
-        )
         LOGGER.info(
             "%s limit reached reply sent | %s",
-            limit_scope.capitalize(),
+            (limit_scope or "unknown").capitalize(),
             metadata_text,
         )
 

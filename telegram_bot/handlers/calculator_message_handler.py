@@ -15,6 +15,7 @@ from calculator.expression_parser import (
     ALTERNATIVE_OPERATORS,
     parse_expression,
 )
+from telegram_bot.localization.messages import get_message
 from telegram_bot.logging_config import (
     format_log_metadata,
     get_update_metadata,
@@ -32,7 +33,6 @@ from telegram_bot.state.message_signature_tracker import (
 
 
 LOGGER = logging.getLogger(__name__)
-CALCULATION_ERROR_MESSAGE = "Не вдалося обчислити вираз."
 CALCULATOR_MESSAGE_FEATURE = "calculator"
 
 
@@ -58,9 +58,10 @@ def format_calculation_response(
     compact_expression = "".join(expression.split())
     formatted_result = _format_calculation_result(expression, result)
 
-    return (
-        f"<b>{html.escape(compact_expression)}</b> = "
-        f"<code>{html.escape(formatted_result)}</code>"
+    return get_message(
+        "calculation_response",
+        expression=html.escape(compact_expression),
+        result=html.escape(formatted_result),
     )
 
 
@@ -120,6 +121,7 @@ async def handle_calculator_message(
     try:
         result = calculate(expression)
     except CalculatorError as error:
+        error_message = get_message("calculation_error")
         LOGGER.warning(
             "Calculation failed: expression=%r, error=%s | %s",
             display_expression,
@@ -135,7 +137,7 @@ async def handle_calculator_message(
 
         if related_reply_message_id is None:
             reply_message = await message.reply_text(
-                text=CALCULATION_ERROR_MESSAGE,
+                text=error_message,
                 do_quote=True,
             )
             remember_related_reply_message_id(
@@ -150,7 +152,7 @@ async def handle_calculator_message(
             await context.bot.edit_message_text(
                 chat_id=chat.id,
                 message_id=related_reply_message_id,
-                text=CALCULATION_ERROR_MESSAGE,
+                text=error_message,
             )
             LOGGER.info("Calculation error reply updated | %s", metadata_text)
 
