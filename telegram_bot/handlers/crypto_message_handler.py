@@ -57,8 +57,13 @@ from telegram_bot.state.message_signature_tracker import (
 
 
 LOGGER = logging.getLogger(__name__)
-CRYPTO_DAILY_LIMIT_REACHED_MESSAGE = (
-    "Ліміт криптоконвертацій на день вичерпано."
+PERSONAL_CRYPTO_LIMIT_REACHED_MESSAGE = (
+    "Ліміт криптоконвертацій на сьогодні вичерпано. "
+    "Спробуйте знову завтра."
+)
+GLOBAL_CRYPTO_LIMIT_REACHED_MESSAGE = (
+    "Загальний ліміт криптоконвертацій бота тимчасово вичерпано. "
+    "Спробуйте пізніше."
 )
 CRYPTO_CALCULATION_ERROR_MESSAGE = "Не вдалося обчислити вираз."
 CRYPTO_MESSAGE_FEATURE = "crypto"
@@ -448,8 +453,12 @@ async def handle_crypto_message(
             metadata_text,
         )
         await message.reply_text(
-            text=CRYPTO_DAILY_LIMIT_REACHED_MESSAGE,
+            text=GLOBAL_CRYPTO_LIMIT_REACHED_MESSAGE,
             do_quote=True,
+        )
+        LOGGER.info(
+            "Global limit reached reply sent | %s",
+            metadata_text,
         )
         return
 
@@ -497,7 +506,7 @@ async def handle_crypto_message(
     metadata_text = format_log_metadata(metadata)
     user_id = metadata["user_id"]
     chat_id = metadata["chat_id"]
-    limit_reached = False
+    limit_reached_message: str | None = None
 
     if not isinstance(user_id, int):
         user_id = None
@@ -510,9 +519,9 @@ async def handle_crypto_message(
             user_id=user_id,
             chat_id=chat_id,
         ):
-            limit_reached = True
+            limit_reached_message = PERSONAL_CRYPTO_LIMIT_REACHED_MESSAGE
             LOGGER.warning(
-                "Daily crypto conversion limit reached | %s",
+                "Personal crypto conversion limit reached | %s",
                 metadata_text,
             )
             break
@@ -528,9 +537,9 @@ async def handle_crypto_message(
                 user_id=user_id,
                 chat_id=chat_id,
             )
-            limit_reached = True
+            limit_reached_message = GLOBAL_CRYPTO_LIMIT_REACHED_MESSAGE
             LOGGER.warning(
-                "Daily CoinGecko request limit reached | %s",
+                "Global CoinGecko request limit reached | %s",
                 metadata_text,
             )
             break
@@ -545,9 +554,14 @@ async def handle_crypto_message(
             user_id=user_id,
             chat_id=chat_id,
         ):
-            limit_reached = True
+            crypto_usage_limiter.release_conversion_attempt(
+                user_id=user_id,
+                chat_id=chat_id,
+            )
+            limit_reached_message = PERSONAL_CRYPTO_LIMIT_REACHED_MESSAGE
             LOGGER.warning(
-                "Daily crypto conversion limit reached | %s",
+                "Personal crypto conversion limit reached while completing "
+                "conversion | %s",
                 metadata_text,
             )
             break
@@ -671,12 +685,21 @@ async def handle_crypto_message(
                 metadata_text,
             )
 
-    if limit_reached:
+    if limit_reached_message is not None:
         await message.reply_text(
-            text=CRYPTO_DAILY_LIMIT_REACHED_MESSAGE,
+            text=limit_reached_message,
             do_quote=True,
         )
-        LOGGER.info("Limit reached reply sent | %s", metadata_text)
+        limit_scope = (
+            "global"
+            if limit_reached_message == GLOBAL_CRYPTO_LIMIT_REACHED_MESSAGE
+            else "personal"
+        )
+        LOGGER.info(
+            "%s limit reached reply sent | %s",
+            limit_scope.capitalize(),
+            metadata_text,
+        )
 
     remember_message_signature(
         context.bot_data,
