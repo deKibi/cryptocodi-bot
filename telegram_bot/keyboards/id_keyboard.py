@@ -55,8 +55,6 @@ def build_entity_selection_keyboard() -> ReplyKeyboardMarkup:
                         chat_is_channel=True,
                     ),
                 ),
-            ],
-            [
                 KeyboardButton(
                     text="User",
                     request_users=KeyboardButtonRequestUsers(
