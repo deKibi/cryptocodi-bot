@@ -29,6 +29,9 @@ from config import (
     TELEGRAM_BOT_TOKEN,
     log_configuration_warnings,
 )
+from telegram_bot.account_creation_date import (
+    estimate_account_creation_month,
+)
 from telegram_bot.handlers.calculator_message_handler import (
     handle_calculator_message,
 )
@@ -109,6 +112,8 @@ def _format_id_value(
 
 def _format_id_message(chat: Chat, user: User) -> str:
     """Format current chat and user details for the ID command."""
+    creation_month = estimate_account_creation_month(user.id)
+
     return "\n".join(
         (
             "<b>CHAT:</b>",
@@ -126,6 +131,8 @@ def _format_id_message(chat: Chat, user: User) -> str:
             "  <b>language:</b> "
             f"{_format_id_value(user.language_code, monospace=True)}",
             f"  <b>ID:</b> {_format_id_value(user.id, monospace=True)}",
+            "⭐<b>Creation date</b>⭐ <b>(approximately):</b> "
+            f"{_format_id_value(creation_month, monospace=True)}",
         )
     )
 
