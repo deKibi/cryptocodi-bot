@@ -29,7 +29,7 @@ from config import (
     TELEGRAM_BOT_TOKEN,
     log_configuration_warnings,
 )
-from telegram_bot.account_creation_date import (
+from telegram_bot.services.account_creation_date import (
     estimate_account_creation_month,
 )
 from telegram_bot.handlers.calculator_message_handler import (
