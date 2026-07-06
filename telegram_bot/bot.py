@@ -221,6 +221,7 @@ async def id_command(
     await message.reply_text(
         _format_id_message(chat=chat, user=user),
         parse_mode="HTML",
+        do_quote=True,
     )
 
 
@@ -260,7 +261,11 @@ def create_application() -> Application:
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(
-        CommandHandler("id", id_command, filters=supported_chats)
+        CommandHandler(
+            "id",
+            id_command,
+            filters=supported_chats & filters.UpdateType.MESSAGE,
+        )
     )
     application.add_handler(
         CallbackQueryHandler(
