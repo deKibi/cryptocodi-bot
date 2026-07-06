@@ -35,10 +35,16 @@ from telegram_bot.handlers.crypto_message_handler import (
     handle_crypto_message,
     handle_delete_crypto_response,
 )
+from telegram_bot.handlers.id_command_handler import (
+    handle_find_different_id_callback,
+    handle_id_command,
+    handle_shared_id_entity,
+)
+from telegram_bot.handlers.time_message_handler import handle_time_message
 from telegram_bot.keyboards.crypto_conversion_keyboard import (
     DELETE_CRYPTO_RESPONSE_CALLBACK,
 )
-from telegram_bot.handlers.time_message_handler import handle_time_message
+from telegram_bot.keyboards.id_keyboard import FIND_DIFFERENT_ID_CALLBACK
 from telegram_bot.logging_config import (
     configure_logging,
     format_log_metadata,
@@ -52,16 +58,27 @@ STARTUP_DELAY_SECONDS: Final[int] = 3
 BOT_INFO_MESSAGE = """Привіт! Це @cryptocodi bot.
 
 <b>Що бот вміє зараз:</b>
-• знаходити UTC-час у повідомленнях і переводити його в Kyiv та CET (центральноєвропейський час, Vien)
-• знаходити суми криптовалют у повідомленнях і приблизно переводити їх в USD та UAH
-• обчислювати прості математичні вирази.
+• знаходити UTC-час у повідомленнях і переводити його в Kyiv та CET (центральноєвропейський час, Відень)
+• знаходити суми криптовалют і приблизно переводити їх в USD та UAH
+• показувати зміну курсу за 24 години та відкривати графіки монет
+• обчислювати прості математичні й криптовалютні вирази
+• показувати ID поточного чату й користувача та приблизну дату створення Telegram-акаунта
+• у приватному чаті відкривати меню вибору іншого користувача, бота, групи або каналу
 
 <b>Приклади:</b>
 
 <code>10:00 UTC</code>
 <code>0.3 BNB</code>
 <code>25k USDT</code>
+<code>1 bitcoin</code>
 <code>(10 + 5) / 3</code>
+<code>3*2 BNB</code>
+<code>/id</code>
+<code>/id 603206097</code>
+
+<b>Команди:</b>
+<code>/start</code> або <code>/help</code> — переглянути це повідомлення
+<code>/id</code> — переглянути ID чату й користувача або приблизну дату створення за ID
 
 Автор: @deKibi
 Канал: @cryptocodi
@@ -71,6 +88,7 @@ BOT_INFO_MESSAGE = """Привіт! Це @cryptocodi bot.
 BOT_COMMANDS = [
     BotCommand("start", "Show bot info and supported formats"),
     BotCommand("help", "Show bot help and usage examples"),
+    BotCommand("id", "Show IDs or estimate account creation date"),
 ]
 
 
@@ -187,9 +205,28 @@ def create_application() -> Application:
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(
+        CommandHandler("id", handle_id_command, filters=supported_chats)
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            handle_find_different_id_callback,
+            pattern=f"^{FIND_DIFFERENT_ID_CALLBACK}$",
+        )
+    )
+    application.add_handler(
         CallbackQueryHandler(
             handle_delete_crypto_response,
             pattern=f"^{DELETE_CRYPTO_RESPONSE_CALLBACK}$",
+        )
+    )
+    application.add_handler(
+        MessageHandler(
+            filters.ChatType.PRIVATE
+            & (
+                filters.StatusUpdate.CHAT_SHARED
+                | filters.StatusUpdate.USERS_SHARED
+            ),
+            handle_shared_id_entity,
         )
     )
     application.add_handler(
