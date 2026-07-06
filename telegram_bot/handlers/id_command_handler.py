@@ -50,8 +50,8 @@ INVALID_USER_ID_MESSAGE: Final[str] = (
     "Вкажіть один додатний цілий ID користувача Telegram."
 )
 GROUP_ID_MESSAGE: Final[str] = (
-    "Це ID групи. Визначення приблизної дати створення наразі "
-    "підтримується лише для користувачів."
+    "Підтримуються лише додатні ID користувачів Telegram. "
+    "ID чатів чи груп не підтримуються."
 )
 ENTITY_SELECTION_PROMPT: Final[str] = (
     "{user_mention}, select an entity (Chat, Channel, User or Bot) "
