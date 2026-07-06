@@ -59,10 +59,10 @@ from telegram_bot.state.message_signature_tracker import (
 LOGGER = logging.getLogger(__name__)
 PERSONAL_CRYPTO_LIMIT_REACHED_MESSAGE = (
     "Ліміт криптоконвертацій на сьогодні вичерпано. "
-    "Спробуйте знову завтра."
+    "Спробуйте завтра."
 )
 GLOBAL_CRYPTO_LIMIT_REACHED_MESSAGE = (
-    "Загальний ліміт криптоконвертацій бота тимчасово вичерпано. "
+    "Загальний ліміт криптоконвертацій вичерпано. "
     "Спробуйте пізніше."
 )
 CRYPTO_CALCULATION_ERROR_MESSAGE = "Не вдалося обчислити вираз."
