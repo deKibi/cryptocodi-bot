@@ -20,7 +20,7 @@ from telegram_bot.keyboards.id_keyboard import (
     build_entity_selection_keyboard,
     build_find_different_id_keyboard,
 )
-from telegram_bot.localization.messages import DEFAULT_LANGUAGE, get_message
+from telegram_bot.localization.messages import get_message
 from telegram_bot.logging_config import (
     format_log_metadata,
     get_update_metadata,
@@ -78,113 +78,75 @@ def _format_optional_value(
     value: Optional[object],
     prefix: str = "",
     monospace: bool = False,
-    language: str = DEFAULT_LANGUAGE,
 ) -> str:
     if value is None or value == "":
-        return get_message("missing_value", language=language)
+        return get_message("missing_value")
 
     formatted_value = f"{escape(prefix)}{escape(str(value))}"
 
     if monospace:
         return get_message(
             "monospace_value",
-            language=language,
             value=formatted_value,
         )
 
     return formatted_value
 
 
-def _format_chat_type(
-    chat_type: str,
-    language: str,
-) -> str:
-    localized_chat_type = get_message(
-        f"chat_type_{chat_type}",
-        language=language,
-    )
-    return _format_optional_value(
-        localized_chat_type,
-        monospace=True,
-        language=language,
-    )
-
-
 def _format_current_id_response(
     chat: Chat,
     user: User,
-    language: str = DEFAULT_LANGUAGE,
 ) -> str:
-    creation_month = estimate_account_creation_month(user.id, language)
+    creation_month = estimate_account_creation_month(user.id)
 
     return get_message(
         "current_id_response",
-        language=language,
-        chat_title=_format_optional_value(chat.title, language=language),
-        chat_type=_format_chat_type(
-            chat.type,
-            language,
-        ),
+        chat_title=_format_optional_value(chat.title),
+        chat_type=_format_optional_value(chat.type, monospace=True),
         chat_username=_format_optional_value(
             chat.username,
             prefix="@",
-            language=language,
         ),
         chat_id=_format_optional_value(
             chat.id,
             monospace=True,
-            language=language,
         ),
-        first_name=_format_optional_value(
-            user.first_name,
-            language=language,
-        ),
-        last_name=_format_optional_value(
-            user.last_name,
-            language=language,
-        ),
+        first_name=_format_optional_value(user.first_name),
+        last_name=_format_optional_value(user.last_name),
         user_username=_format_optional_value(
             user.username,
             prefix="@",
-            language=language,
         ),
         language_code=_format_optional_value(
             user.language_code,
             monospace=True,
-            language=language,
         ),
         user_id=_format_optional_value(
             user.id,
             monospace=True,
-            language=language,
         ),
         creation_month=_format_optional_value(
             creation_month,
             monospace=True,
-            language=language,
         ),
     )
 
 
 def _format_user_id_response(
     user_id: int,
-    language: str = DEFAULT_LANGUAGE,
 ) -> str:
     return get_message(
         "user_id_response",
-        language=language,
         user_id=user_id,
-        creation_month=estimate_account_creation_month(user_id, language),
+        creation_month=estimate_account_creation_month(user_id),
     )
 
 
 def _format_chat_id_response(
     chat_id: int,
-    language: str = DEFAULT_LANGUAGE,
 ) -> str:
     return get_message(
         "chat_id_response",
-        language=language,
         chat_id=chat_id,
     )
 

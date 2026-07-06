@@ -14,7 +14,7 @@ from telegram import (
 )
 
 # Custom Modules
-from telegram_bot.localization.messages import DEFAULT_LANGUAGE, get_message
+from telegram_bot.localization.messages import get_message
 
 
 # ID lookup keyboards
@@ -25,18 +25,13 @@ USER_REQUEST_ID: Final[int] = 3
 BOT_REQUEST_ID: Final[int] = 4
 
 
-def build_find_different_id_keyboard(
-    language: str = DEFAULT_LANGUAGE,
-) -> InlineKeyboardMarkup:
+def build_find_different_id_keyboard() -> InlineKeyboardMarkup:
     """Build the inline action for opening the entity selector."""
     return InlineKeyboardMarkup(
         [
             [
                 InlineKeyboardButton(
-                    text=get_message(
-                        "find_different_id_button",
-                        language=language,
-                    ),
+                    text=get_message("find_different_id_button"),
                     callback_data=FIND_DIFFERENT_ID_CALLBACK,
                 )
             ]
@@ -44,32 +39,27 @@ def build_find_different_id_keyboard(
     )
 
 
-def build_entity_selection_keyboard(
-    language: str = DEFAULT_LANGUAGE,
-) -> ReplyKeyboardMarkup:
+def build_entity_selection_keyboard() -> ReplyKeyboardMarkup:
     """Build buttons that request one Telegram entity of each type."""
     return ReplyKeyboardMarkup(
         keyboard=[
             [
                 KeyboardButton(
-                    text=get_message("select_chat_button", language=language),
+                    text=get_message("select_chat_button"),
                     request_chat=KeyboardButtonRequestChat(
                         request_id=CHAT_REQUEST_ID,
                         chat_is_channel=False,
                     ),
                 ),
                 KeyboardButton(
-                    text=get_message(
-                        "select_channel_button",
-                        language=language,
-                    ),
+                    text=get_message("select_channel_button"),
                     request_chat=KeyboardButtonRequestChat(
                         request_id=CHANNEL_REQUEST_ID,
                         chat_is_channel=True,
                     ),
                 ),
                 KeyboardButton(
-                    text=get_message("select_user_button", language=language),
+                    text=get_message("select_user_button"),
                     request_users=KeyboardButtonRequestUsers(
                         request_id=USER_REQUEST_ID,
                         user_is_bot=False,
@@ -77,7 +67,7 @@ def build_entity_selection_keyboard(
                     ),
                 ),
                 KeyboardButton(
-                    text=get_message("select_bot_button", language=language),
+                    text=get_message("select_bot_button"),
                     request_users=KeyboardButtonRequestUsers(
                         request_id=BOT_REQUEST_ID,
                         user_is_bot=True,
@@ -88,8 +78,5 @@ def build_entity_selection_keyboard(
         ],
         resize_keyboard=True,
         one_time_keyboard=True,
-        input_field_placeholder=get_message(
-            "select_entity_placeholder",
-            language=language,
-        ),
+        input_field_placeholder=get_message("select_entity_placeholder"),
     )

@@ -9,7 +9,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 # Custom Modules
 from crypto_converter.crypto_price_converter import CryptoPriceConversion
-from telegram_bot.localization.messages import DEFAULT_LANGUAGE, get_message
+from telegram_bot.localization.messages import get_message
 
 
 # Coin chart links
@@ -22,7 +22,6 @@ MAX_COIN_NAME_BUTTON_LENGTH: Final[int] = 24
 
 def _get_chart_button_label(
     conversion: CryptoPriceConversion,
-    language: str = DEFAULT_LANGUAGE,
 ) -> str:
     coin_name = conversion.coin_name.strip()
 
@@ -31,14 +30,12 @@ def _get_chart_button_label(
 
     return get_message(
         "coin_chart_button",
-        language=language,
         coin_name=coin_name,
     )
 
 
 def build_crypto_conversion_keyboard(
     conversions: list[CryptoPriceConversion],
-    language: str = DEFAULT_LANGUAGE,
 ) -> InlineKeyboardMarkup:
     """Build unique CoinGecko chart buttons in conversion order."""
     keyboard: list[list[InlineKeyboardButton]] = []
@@ -56,7 +53,7 @@ def build_crypto_conversion_keyboard(
         keyboard.append(
             [
                 InlineKeyboardButton(
-                    text=_get_chart_button_label(conversion, language),
+                    text=_get_chart_button_label(conversion),
                     url=COINGECKO_COIN_URL_TEMPLATE.format(coin_id=coin_id),
                 )
             ]
@@ -65,7 +62,7 @@ def build_crypto_conversion_keyboard(
     keyboard.append(
         [
             InlineKeyboardButton(
-                text=get_message("delete_button", language=language),
+                text=get_message("delete_button"),
                 callback_data=DELETE_CRYPTO_RESPONSE_CALLBACK,
             )
         ]
