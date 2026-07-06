@@ -35,11 +35,16 @@ from telegram_bot.handlers.crypto_message_handler import (
     handle_crypto_message,
     handle_delete_crypto_response,
 )
-from telegram_bot.handlers.id_command_handler import handle_id_command
+from telegram_bot.handlers.id_command_handler import (
+    handle_find_different_id_callback,
+    handle_id_command,
+    handle_shared_id_entity,
+)
+from telegram_bot.handlers.time_message_handler import handle_time_message
 from telegram_bot.keyboards.crypto_conversion_keyboard import (
     DELETE_CRYPTO_RESPONSE_CALLBACK,
 )
-from telegram_bot.handlers.time_message_handler import handle_time_message
+from telegram_bot.keyboards.id_keyboard import FIND_DIFFERENT_ID_CALLBACK
 from telegram_bot.logging_config import (
     configure_logging,
     format_log_metadata,
@@ -193,8 +198,24 @@ def create_application() -> Application:
     )
     application.add_handler(
         CallbackQueryHandler(
+            handle_find_different_id_callback,
+            pattern=f"^{FIND_DIFFERENT_ID_CALLBACK}$",
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
             handle_delete_crypto_response,
             pattern=f"^{DELETE_CRYPTO_RESPONSE_CALLBACK}$",
+        )
+    )
+    application.add_handler(
+        MessageHandler(
+            filters.ChatType.PRIVATE
+            & (
+                filters.StatusUpdate.CHAT_SHARED
+                | filters.StatusUpdate.USERS_SHARED
+            ),
+            handle_shared_id_entity,
         )
     )
     application.add_handler(

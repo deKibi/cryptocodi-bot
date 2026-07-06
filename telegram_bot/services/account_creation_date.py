@@ -7,7 +7,7 @@ from typing import Final
 
 
 # Approximation data
-# Historical samples are adapted from the MIT-licensed GetIDs dataset:
+# Initial historical samples are adapted from the MIT-licensed GetIDs dataset:
 # https://github.com/AmanoTeam/python-getids
 _ACCOUNT_AGE_ANCHORS: Final[tuple[tuple[int, date], ...]] = (
     (2_768_409, date(2013, 10, 31)),
@@ -19,7 +19,9 @@ _ACCOUNT_AGE_ANCHORS: Final[tuple[tuple[int, date], ...]] = (
     (400_169_472, date(2017, 7, 31)),
     (603_206_097, date(2018, 6, 15)),
     (805_158_066, date(2019, 7, 15)),
+    (1_624_349_999, date(2021, 1, 15)),
     (1_974_255_900, date(2021, 10, 12)),
+    (5_240_968_131, date(2022, 5, 15)),
 )
 _ANCHOR_IDS: Final[tuple[int, ...]] = tuple(
     user_id for user_id, _creation_date in _ACCOUNT_AGE_ANCHORS
