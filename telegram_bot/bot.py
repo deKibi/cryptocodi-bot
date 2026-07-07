@@ -84,10 +84,7 @@ def _format_market_cap_rank_limit() -> str:
     if CRYPTO_MAX_MARKET_CAP_RANK_IS_CONFIGURED:
         return str(CRYPTO_MAX_MARKET_CAP_RANK)
 
-    return (
-        "not configured "
-        f"(using default {DEFAULT_CRYPTO_MAX_MARKET_CAP_RANK})"
-    )
+    return f"{DEFAULT_CRYPTO_MAX_MARKET_CAP_RANK} (default)"
 
 
 def log_startup_configuration() -> None:
@@ -97,8 +94,7 @@ def log_startup_configuration() -> None:
         "  CoinGecko requests per UTC day: %d\n"
         "  Conversions per user per UTC day: %d\n"
         "  Maximum crypto pairs per message: %d\n"
-        "  Maximum CoinGecko market cap rank for tickers parsed from "
-        "text messages: %s\n"
+        "  Text ticker rank limit: %s\n"
         "  Priority group IDs: %s\n"
         "  Priority group conversion limit: %s\n"
         "  Priority user IDs: %s\n"
