@@ -49,16 +49,18 @@ def calculate_crypto_expression(
         return None
 
     raw_expression = match.group("expression").strip()
+    raw_ticker = match.group("ticker").strip()
 
-    if EXPLICIT_OPERATOR_PATTERN.search(raw_expression) is None:
+    if (
+        EXPLICIT_OPERATOR_PATTERN.search(raw_expression) is None
+        or not any(character.isalpha() for character in raw_ticker)
+    ):
         return None
 
     calculation_expression = parse_expression(raw_expression)
 
     if calculation_expression is None:
-        raise InvalidExpressionError(
-            "Crypto calculation has invalid mathematical syntax."
-        )
+        return None
 
     calculated_value = calculate(calculation_expression)
     amount = Decimal(str(calculated_value))
@@ -77,6 +79,6 @@ def calculate_crypto_expression(
         display_expression=raw_expression.translate(ALTERNATIVE_OPERATORS),
         calculation_expression=calculation_expression,
         amount=amount,
-        ticker=match.group("ticker").upper(),
+        ticker=raw_ticker.upper(),
         matched_text=message_text.strip(),
     )
