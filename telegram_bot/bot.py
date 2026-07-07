@@ -21,6 +21,8 @@ from config import (
     COINGECKO_REQUESTS_PER_DAY,
     CRYPTO_CONVERSIONS_PER_USER_PER_DAY,
     CRYPTO_MAX_MARKET_CAP_RANK,
+    CRYPTO_MAX_MARKET_CAP_RANK_IS_CONFIGURED,
+    DEFAULT_CRYPTO_MAX_MARKET_CAP_RANK,
     MAX_CRYPTO_PAIRS_PER_MESSAGE,
     PRIORITY_GROUP_CONVERT_LIMIT,
     PRIORITY_GROUPS_ID,
@@ -78,6 +80,16 @@ def _format_optional_limit(limit: Optional[int]) -> str:
     return str(limit)
 
 
+def _format_market_cap_rank_limit() -> str:
+    if CRYPTO_MAX_MARKET_CAP_RANK_IS_CONFIGURED:
+        return str(CRYPTO_MAX_MARKET_CAP_RANK)
+
+    return (
+        "not configured "
+        f"(using default {DEFAULT_CRYPTO_MAX_MARKET_CAP_RANK})"
+    )
+
+
 def log_startup_configuration() -> None:
     """Log non-sensitive bot settings before Telegram polling starts."""
     LOGGER.info(
@@ -85,7 +97,7 @@ def log_startup_configuration() -> None:
         "  CoinGecko requests per UTC day: %d\n"
         "  Conversions per user per UTC day: %d\n"
         "  Maximum crypto pairs per message: %d\n"
-        "  Maximum supported CoinGecko market cap rank: %d\n"
+        "  Maximum supported CoinGecko market cap rank: %s\n"
         "  Priority group IDs: %s\n"
         "  Priority group conversion limit: %s\n"
         "  Priority user IDs: %s\n"
@@ -93,7 +105,7 @@ def log_startup_configuration() -> None:
         COINGECKO_REQUESTS_PER_DAY,
         CRYPTO_CONVERSIONS_PER_USER_PER_DAY,
         MAX_CRYPTO_PAIRS_PER_MESSAGE,
-        CRYPTO_MAX_MARKET_CAP_RANK,
+        _format_market_cap_rank_limit(),
         _format_configured_ids(PRIORITY_GROUPS_ID),
         _format_optional_limit(PRIORITY_GROUP_CONVERT_LIMIT),
         _format_configured_ids(PRIORITY_USERS_ID),

@@ -259,11 +259,19 @@ def _get_unique_crypto_amounts(
 ) -> list[ResolvedCryptoAmount]:
     unique_crypto_amounts: list[ResolvedCryptoAmount] = []
     seen_pairs: set[tuple[Decimal, str]] = set()
-    resolved_crypto_amounts = resolve_crypto_amounts_from_text(message_text)
+    exact_crypto_amounts = resolve_crypto_amounts_from_text(message_text)
     is_conversion_only = contains_only_resolved_crypto_amounts(
         message_text,
-        resolved_crypto_amounts,
+        exact_crypto_amounts,
     )
+
+    if is_conversion_only:
+        resolved_crypto_amounts = exact_crypto_amounts
+    else:
+        resolved_crypto_amounts = resolve_crypto_amounts_from_text(
+            message_text,
+            top_ranked_only=True,
+        )
 
     for resolved_crypto_amount in resolved_crypto_amounts:
         pair = (

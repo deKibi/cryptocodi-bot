@@ -172,9 +172,13 @@ MAX_CRYPTO_PAIRS_PER_MESSAGE: Final[int] = get_positive_int_env(
     default=5,
 )
 
+DEFAULT_CRYPTO_MAX_MARKET_CAP_RANK: Final[int] = 1000
+CRYPTO_MAX_MARKET_CAP_RANK_IS_CONFIGURED: Final[bool] = bool(
+    os.getenv("CRYPTO_MAX_MARKET_CAP_RANK", "").strip()
+)
 CRYPTO_MAX_MARKET_CAP_RANK: Final[int] = get_positive_int_env(
     variable_name="CRYPTO_MAX_MARKET_CAP_RANK",
-    default=1000,
+    default=DEFAULT_CRYPTO_MAX_MARKET_CAP_RANK,
 )
 
 PRIORITY_GROUPS_ID: Final[frozenset[int]] = get_int_set_env(
