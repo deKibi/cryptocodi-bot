@@ -94,7 +94,7 @@ def log_startup_configuration() -> None:
         "  CoinGecko requests per UTC day: %d\n"
         "  Conversions per user per UTC day: %d\n"
         "  Maximum crypto pairs per message: %d\n"
-        "  Text ticker rank limit: %s\n"
+        "  In-message ticker rank limit: %s\n"
         "  Priority group IDs: %s\n"
         "  Priority group conversion limit: %s\n"
         "  Priority user IDs: %s\n"
