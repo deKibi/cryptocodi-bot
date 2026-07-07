@@ -28,6 +28,7 @@ COINGECKO_COINS_LIST_URL: Final[str] = (
     "https://api.coingecko.com/api/v3/coins/list"
 )
 REQUEST_TIMEOUT_SECONDS: Final[int] = 10
+COINGECKO_MARKETS_MAX_PAGE_SIZE: Final[int] = 250
 
 
 @dataclass(frozen=True)
@@ -187,6 +188,50 @@ def get_coin_catalog() -> list[CoinGeckoSearchCoin]:
         raise CoinGeckoAPIError("CoinGecko returned an unexpected response")
 
     return _parse_coins(response_data)
+
+
+def get_top_market_cap_coins(
+    max_market_cap_rank: int,
+) -> list[CoinGeckoSearchCoin]:
+    """Return CoinGecko coins up to a maximum market cap rank."""
+    if max_market_cap_rank <= 0:
+        raise ValueError("max_market_cap_rank must be greater than zero")
+
+    page_size = min(
+        max_market_cap_rank,
+        COINGECKO_MARKETS_MAX_PAGE_SIZE,
+    )
+    page_count = (max_market_cap_rank + page_size - 1) // page_size
+    ranked_coins: list[CoinGeckoSearchCoin] = []
+
+    for page in range(1, page_count + 1):
+        response_data = _get_response_data(
+            url=COINGECKO_MARKETS_URL,
+            params={
+                "vs_currency": "usd",
+                "order": "market_cap_desc",
+                "per_page": str(page_size),
+                "page": str(page),
+                "sparkline": "false",
+            },
+        )
+
+        if not isinstance(response_data, list):
+            raise CoinGeckoAPIError(
+                "CoinGecko returned an unexpected response"
+            )
+
+        ranked_coins.extend(
+            coin
+            for coin in _parse_coins(response_data)
+            if coin.market_cap_rank is not None
+            and coin.market_cap_rank <= max_market_cap_rank
+        )
+
+        if len(response_data) < page_size:
+            break
+
+    return ranked_coins
 
 
 def get_coins_by_symbol(symbol: str) -> list[CoinGeckoSearchCoin]:

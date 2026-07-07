@@ -3,12 +3,14 @@
 # Standard Libraries
 from dataclasses import dataclass
 from threading import Lock
-from typing import Final, Optional
+from typing import Callable, Final, Optional
 
 # Custom Modules
+from config import CRYPTO_MAX_MARKET_CAP_RANK
 from crypto_converter.coingecko_client import (
     CoinGeckoSearchCoin,
     get_coin_catalog,
+    get_top_market_cap_coins,
     search_coins,
 )
 
@@ -47,8 +49,13 @@ KNOWN_COINS: Final[dict[str, ResolvedCoin]] = {
     "UAH": ResolvedCoin("tether", "UAH", "Hryvnia"),
 }
 TICKER_CACHE: dict[str, ResolvedCoin] = {}
+TOP_RANKED_TICKER_CACHE: dict[str, ResolvedCoin] = {}
 _COIN_REFERENCE_INDEX: Optional[dict[str, list[ResolvedCoin]]] = None
+_TOP_RANKED_COIN_REFERENCE_INDEX: Optional[
+    dict[str, list[ResolvedCoin]]
+] = None
 _MAX_COIN_REFERENCE_LENGTH = 0
+_MAX_TOP_RANKED_COIN_REFERENCE_LENGTH = 0
 _CATALOG_LOCK = Lock()
 
 
@@ -60,6 +67,63 @@ def _to_resolved_coin(coin: CoinGeckoSearchCoin) -> ResolvedCoin:
     )
 
 
+def _build_coin_reference_index(
+    catalog_coins: list[CoinGeckoSearchCoin],
+    restrict_known_coins: bool,
+) -> tuple[dict[str, list[ResolvedCoin]], int]:
+    reference_index: dict[str, list[ResolvedCoin]] = {}
+    eligible_coin_ids = {
+        catalog_coin.coin_id for catalog_coin in catalog_coins
+    }
+
+    for catalog_coin in catalog_coins:
+        resolved_coin = _to_resolved_coin(catalog_coin)
+
+        for reference in (catalog_coin.symbol, catalog_coin.name):
+            normalized_reference = reference.strip().casefold()
+
+            if not normalized_reference:
+                continue
+
+            reference_coins = reference_index.setdefault(
+                normalized_reference,
+                [],
+            )
+
+            if all(
+                coin.coin_id != resolved_coin.coin_id
+                for coin in reference_coins
+            ):
+                reference_coins.append(resolved_coin)
+
+    for reference, known_coin in KNOWN_COINS.items():
+        if (
+            restrict_known_coins
+            and known_coin.ticker != "UAH"
+            and known_coin.coin_id not in eligible_coin_ids
+        ):
+            continue
+
+        reference_coins = reference_index.setdefault(
+            reference.casefold(),
+            [],
+        )
+
+        if all(
+            coin.coin_id != known_coin.coin_id
+            or coin.ticker != known_coin.ticker
+            for coin in reference_coins
+        ):
+            reference_coins.append(known_coin)
+
+    reference_index["hryvnia"] = [KNOWN_COINS["UAH"]]
+    maximum_reference_length = max(
+        (len(reference) for reference in reference_index),
+        default=0,
+    )
+    return reference_index, maximum_reference_length
+
+
 def _get_coin_reference_index() -> dict[str, list[ResolvedCoin]]:
     global _COIN_REFERENCE_INDEX
     global _MAX_COIN_REFERENCE_LENGTH
@@ -68,51 +132,38 @@ def _get_coin_reference_index() -> dict[str, list[ResolvedCoin]]:
         return _COIN_REFERENCE_INDEX
 
     with _CATALOG_LOCK:
-        if _COIN_REFERENCE_INDEX is not None:
-            return _COIN_REFERENCE_INDEX
-
-        reference_index: dict[str, list[ResolvedCoin]] = {}
-
-        for catalog_coin in get_coin_catalog():
-            resolved_coin = _to_resolved_coin(catalog_coin)
-
-            for reference in (catalog_coin.symbol, catalog_coin.name):
-                normalized_reference = reference.strip().casefold()
-
-                if not normalized_reference:
-                    continue
-
-                reference_coins = reference_index.setdefault(
-                    normalized_reference,
-                    [],
-                )
-
-                if all(
-                    coin.coin_id != resolved_coin.coin_id
-                    for coin in reference_coins
-                ):
-                    reference_coins.append(resolved_coin)
-
-        for reference, known_coin in KNOWN_COINS.items():
-            reference_coins = reference_index.setdefault(
-                reference.casefold(),
-                [],
+        if _COIN_REFERENCE_INDEX is None:
+            (
+                _COIN_REFERENCE_INDEX,
+                _MAX_COIN_REFERENCE_LENGTH,
+            ) = _build_coin_reference_index(
+                get_coin_catalog(),
+                restrict_known_coins=False,
             )
 
-            if all(
-                coin.coin_id != known_coin.coin_id
-                or coin.ticker != known_coin.ticker
-                for coin in reference_coins
-            ):
-                reference_coins.append(known_coin)
+    return _COIN_REFERENCE_INDEX
 
-        reference_index["hryvnia"] = [KNOWN_COINS["UAH"]]
-        _MAX_COIN_REFERENCE_LENGTH = max(
-            (len(reference) for reference in reference_index),
-            default=0,
-        )
-        _COIN_REFERENCE_INDEX = reference_index
-        return reference_index
+
+def _get_top_ranked_coin_reference_index() -> dict[str, list[ResolvedCoin]]:
+    global _TOP_RANKED_COIN_REFERENCE_INDEX
+    global _MAX_TOP_RANKED_COIN_REFERENCE_LENGTH
+
+    if _TOP_RANKED_COIN_REFERENCE_INDEX is not None:
+        return _TOP_RANKED_COIN_REFERENCE_INDEX
+
+    with _CATALOG_LOCK:
+        if _TOP_RANKED_COIN_REFERENCE_INDEX is None:
+            (
+                _TOP_RANKED_COIN_REFERENCE_INDEX,
+                _MAX_TOP_RANKED_COIN_REFERENCE_LENGTH,
+            ) = _build_coin_reference_index(
+                get_top_market_cap_coins(
+                    CRYPTO_MAX_MARKET_CAP_RANK
+                ),
+                restrict_known_coins=True,
+            )
+
+    return _TOP_RANKED_COIN_REFERENCE_INDEX
 
 
 def _select_ambiguous_coin(
@@ -140,9 +191,42 @@ def _select_ambiguous_coin(
     return None
 
 
-def resolve_coin(ticker: str) -> Optional[ResolvedCoin]:
-    """Resolve an exact ticker or coin name to canonical metadata."""
+def _resolve_coin_from_index(
+    ticker: str,
+    reference_index: dict[str, list[ResolvedCoin]],
+    ticker_cache: dict[str, ResolvedCoin],
+) -> Optional[ResolvedCoin]:
     normalized_reference = ticker.strip().casefold()
+    normalized_ticker = ticker.strip().upper()
+
+    if not normalized_ticker or normalized_ticker in BLOCKED_TICKERS:
+        return None
+
+    cached_coin = ticker_cache.get(normalized_reference)
+
+    if cached_coin is not None:
+        return cached_coin
+
+    candidates = reference_index.get(normalized_reference, [])
+
+    if len(candidates) == 1:
+        resolved_coin = candidates[0]
+        ticker_cache[normalized_reference] = resolved_coin
+        return resolved_coin
+
+    if len(candidates) > 1:
+        resolved_coin = _select_ambiguous_coin(ticker, candidates)
+
+        if resolved_coin is not None:
+            ticker_cache[normalized_reference] = resolved_coin
+
+        return resolved_coin
+
+    return None
+
+
+def resolve_coin(ticker: str) -> Optional[ResolvedCoin]:
+    """Resolve any exact CoinGecko ticker or full name."""
     normalized_ticker = ticker.strip().upper()
 
     if not normalized_ticker or normalized_ticker in BLOCKED_TICKERS:
@@ -153,46 +237,30 @@ def resolve_coin(ticker: str) -> Optional[ResolvedCoin]:
     if known_coin is not None:
         return known_coin
 
-    cached_coin = TICKER_CACHE.get(normalized_reference)
-
-    if cached_coin is not None:
-        return cached_coin
-
-    reference_index = _get_coin_reference_index()
-    candidates = reference_index.get(normalized_reference, [])
-
-    if len(candidates) == 1:
-        resolved_coin = candidates[0]
-        TICKER_CACHE[normalized_reference] = resolved_coin
-        return resolved_coin
-
-    if len(candidates) > 1:
-        resolved_coin = _select_ambiguous_coin(ticker, candidates)
-
-        if resolved_coin is not None:
-            TICKER_CACHE[normalized_reference] = resolved_coin
-
-        return resolved_coin
-
-    for coin in search_coins(normalized_ticker):
-        if (
-            coin.symbol.casefold() == normalized_reference
-            or coin.name.casefold() == normalized_reference
-        ):
-            resolved_coin = _to_resolved_coin(coin)
-            TICKER_CACHE[normalized_reference] = resolved_coin
-            return resolved_coin
-
-    return None
+    return _resolve_coin_from_index(
+        ticker,
+        _get_coin_reference_index(),
+        TICKER_CACHE,
+    )
 
 
-def resolve_coin_reference_at(
+def resolve_top_ranked_coin(ticker: str) -> Optional[ResolvedCoin]:
+    """Resolve an exact coin limited by configured market cap rank."""
+    return _resolve_coin_from_index(
+        ticker,
+        _get_top_ranked_coin_reference_index(),
+        TOP_RANKED_TICKER_CACHE,
+    )
+
+
+def _resolve_coin_reference_at(
     text: str,
     start: int,
+    reference_index: dict[str, list[ResolvedCoin]],
+    maximum_reference_length: int,
+    coin_resolver: Callable[[str], Optional[ResolvedCoin]],
 ) -> Optional[ResolvedCoinMatch]:
-    """Resolve the longest exact coin reference beginning at an offset."""
-    reference_index = _get_coin_reference_index()
-    maximum_end = min(len(text), start + _MAX_COIN_REFERENCE_LENGTH)
+    maximum_end = min(len(text), start + maximum_reference_length)
 
     for end in range(maximum_end, start, -1):
         if end < len(text) and (text[end].isalnum() or text[end] == "_"):
@@ -204,7 +272,7 @@ def resolve_coin_reference_at(
         if normalized_reference not in reference_index:
             continue
 
-        resolved_coin = resolve_coin(reference)
+        resolved_coin = coin_resolver(reference)
 
         if resolved_coin is None:
             return None
@@ -216,6 +284,36 @@ def resolve_coin_reference_at(
         )
 
     return None
+
+
+def resolve_coin_reference_at(
+    text: str,
+    start: int,
+) -> Optional[ResolvedCoinMatch]:
+    """Resolve any longest exact coin reference at an offset."""
+    reference_index = _get_coin_reference_index()
+    return _resolve_coin_reference_at(
+        text,
+        start,
+        reference_index,
+        _MAX_COIN_REFERENCE_LENGTH,
+        resolve_coin,
+    )
+
+
+def resolve_top_ranked_coin_reference_at(
+    text: str,
+    start: int,
+) -> Optional[ResolvedCoinMatch]:
+    """Resolve a longest top-ranked coin reference at an offset."""
+    reference_index = _get_top_ranked_coin_reference_index()
+    return _resolve_coin_reference_at(
+        text,
+        start,
+        reference_index,
+        _MAX_TOP_RANKED_COIN_REFERENCE_LENGTH,
+        resolve_top_ranked_coin,
+    )
 
 
 def resolve_coin_ticker(ticker: str) -> Optional[str]:

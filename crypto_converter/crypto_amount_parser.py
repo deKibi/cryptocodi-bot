@@ -15,6 +15,7 @@ from calculator.compact_number_normalizer import (
 from crypto_converter.coin_ticker_resolver import (
     ResolvedCoin,
     resolve_coin_reference_at,
+    resolve_top_ranked_coin_reference_at,
 )
 
 
@@ -23,7 +24,7 @@ THOUSAND_MULTIPLIER: Final[Decimal] = Decimal("1000")
 CRYPTO_AMOUNT_PATTERN: Final[re.Pattern[str]] = re.compile(
     rf"(?<![\w.,:-])(?P<amount>{NUMBER_LITERAL_REGEX})"
     r"(?:(?P<multiplier>k)\s+|\s*)"
-    r"(?:\$)?"
+    r"(?P<dollar>\$)?"
     r"(?P<ticker>(?:(?<=[\s$])[A-Za-z]|[A-Za-z]{2,10}))(?!\w)",
     flags=re.IGNORECASE,
 )
@@ -83,6 +84,15 @@ def _find_crypto_amount_matches(text: str) -> list[re.Match[str]]:
         if preceding_index >= 0 and text[preceding_index] == "$":
             continue
 
+        ticker = match.group("ticker")
+
+        if (
+            len(ticker) == 1
+            and match.group("dollar") is None
+            and not ticker.isupper()
+        ):
+            continue
+
         matches.append(match)
 
     return matches
@@ -104,6 +114,20 @@ def _parse_amount_value(match: re.Match[str]) -> Decimal:
         amount *= THOUSAND_MULTIPLIER
 
     return amount
+
+
+def _is_single_letter_reference_allowed(
+    reference: str,
+    is_dollar_prefixed: bool,
+    top_ranked_only: bool,
+) -> bool:
+    normalized_reference = reference.strip()
+    return (
+        len(normalized_reference) != 1
+        or not top_ranked_only
+        or is_dollar_prefixed
+        or normalized_reference.isupper()
+    )
 
 
 def parse_crypto_amount_from_text(
@@ -150,10 +174,18 @@ def contains_only_crypto_amounts(text: str) -> bool:
     )
 
 
-def resolve_crypto_amounts_from_text(text: str) -> list[ResolvedCryptoAmount]:
+def resolve_crypto_amounts_from_text(
+    text: str,
+    top_ranked_only: bool = False,
+) -> list[ResolvedCryptoAmount]:
     """Resolve crypto amounts using exact ticker or full-name references."""
     resolved_amounts: list[ResolvedCryptoAmount] = []
     previous_match_end = 0
+    coin_reference_resolver = (
+        resolve_top_ranked_coin_reference_at
+        if top_ranked_only
+        else resolve_coin_reference_at
+    )
 
     for amount_match in CRYPTO_AMOUNT_PREFIX_PATTERN.finditer(text):
         if (
@@ -162,9 +194,24 @@ def resolve_crypto_amounts_from_text(text: str) -> list[ResolvedCryptoAmount]:
         ):
             continue
 
-        coin_match = resolve_coin_reference_at(text, amount_match.end())
+        reference_start = amount_match.end()
+        reference_is_dollar_prefixed = (
+            reference_start < len(text) and text[reference_start] == "$"
+        )
 
-        if coin_match is None:
+        if reference_is_dollar_prefixed:
+            reference_start += 1
+
+        coin_match = coin_reference_resolver(text, reference_start)
+
+        if (
+            coin_match is None
+            or not _is_single_letter_reference_allowed(
+                coin_match.matched_text,
+                reference_is_dollar_prefixed,
+                top_ranked_only,
+            )
+        ):
             continue
 
         resolved_amounts.append(
