@@ -6,9 +6,10 @@ from threading import Lock
 from typing import Final, Optional
 
 # Custom Modules
+from config import CRYPTO_MAX_MARKET_CAP_RANK
 from crypto_converter.coingecko_client import (
     CoinGeckoSearchCoin,
-    get_coin_catalog,
+    get_top_market_cap_coins,
     search_coins,
 )
 
@@ -72,8 +73,14 @@ def _get_coin_reference_index() -> dict[str, list[ResolvedCoin]]:
             return _COIN_REFERENCE_INDEX
 
         reference_index: dict[str, list[ResolvedCoin]] = {}
+        catalog_coins = get_top_market_cap_coins(
+            CRYPTO_MAX_MARKET_CAP_RANK
+        )
+        eligible_coin_ids = {
+            catalog_coin.coin_id for catalog_coin in catalog_coins
+        }
 
-        for catalog_coin in get_coin_catalog():
+        for catalog_coin in catalog_coins:
             resolved_coin = _to_resolved_coin(catalog_coin)
 
             for reference in (catalog_coin.symbol, catalog_coin.name):
@@ -94,6 +101,12 @@ def _get_coin_reference_index() -> dict[str, list[ResolvedCoin]]:
                     reference_coins.append(resolved_coin)
 
         for reference, known_coin in KNOWN_COINS.items():
+            if (
+                known_coin.ticker != "UAH"
+                and known_coin.coin_id not in eligible_coin_ids
+            ):
+                continue
+
             reference_coins = reference_index.setdefault(
                 reference.casefold(),
                 [],
@@ -148,11 +161,6 @@ def resolve_coin(ticker: str) -> Optional[ResolvedCoin]:
     if not normalized_ticker or normalized_ticker in BLOCKED_TICKERS:
         return None
 
-    known_coin = KNOWN_COINS.get(normalized_ticker)
-
-    if known_coin is not None:
-        return known_coin
-
     cached_coin = TICKER_CACHE.get(normalized_reference)
 
     if cached_coin is not None:
@@ -173,15 +181,6 @@ def resolve_coin(ticker: str) -> Optional[ResolvedCoin]:
             TICKER_CACHE[normalized_reference] = resolved_coin
 
         return resolved_coin
-
-    for coin in search_coins(normalized_ticker):
-        if (
-            coin.symbol.casefold() == normalized_reference
-            or coin.name.casefold() == normalized_reference
-        ):
-            resolved_coin = _to_resolved_coin(coin)
-            TICKER_CACHE[normalized_reference] = resolved_coin
-            return resolved_coin
 
     return None
 
