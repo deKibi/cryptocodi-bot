@@ -119,10 +119,12 @@ def _parse_amount_value(match: re.Match[str]) -> Decimal:
 def _is_single_letter_reference_allowed(
     reference: str,
     is_dollar_prefixed: bool,
+    top_ranked_only: bool,
 ) -> bool:
     normalized_reference = reference.strip()
     return (
         len(normalized_reference) != 1
+        or not top_ranked_only
         or is_dollar_prefixed
         or normalized_reference.isupper()
     )
@@ -207,6 +209,7 @@ def resolve_crypto_amounts_from_text(
             or not _is_single_letter_reference_allowed(
                 coin_match.matched_text,
                 reference_is_dollar_prefixed,
+                top_ranked_only,
             )
         ):
             continue
