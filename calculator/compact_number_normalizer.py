@@ -14,8 +14,14 @@ COMPACT_NUMBER_SUFFIX_REGEX: Final[str] = r"kKmM"
 NON_ZERO_GROUPED_INTEGER_REGEX: Final[str] = (
     r"(?:[1-9]\d{0,2}|0[1-9]\d?|00[1-9])"
 )
-GROUPED_NUMBER_REGEX: Final[str] = (
+COMMA_GROUPED_NUMBER_REGEX: Final[str] = (
     rf"{NON_ZERO_GROUPED_INTEGER_REGEX}(?:,\d{{3}})+(?:\.\d+)?"
+)
+SPACE_GROUPED_NUMBER_REGEX: Final[str] = (
+    rf"{NON_ZERO_GROUPED_INTEGER_REGEX}(?: \d{{3}})+(?:[.,]\d+)?"
+)
+GROUPED_NUMBER_REGEX: Final[str] = (
+    rf"(?:{COMMA_GROUPED_NUMBER_REGEX}|{SPACE_GROUPED_NUMBER_REGEX})"
 )
 PLAIN_NUMBER_REGEX: Final[str] = r"\d+(?:[.,]\d+)?"
 NUMBER_LITERAL_REGEX: Final[str] = (
@@ -38,7 +44,11 @@ COMPACT_NUMBER_PATTERN: Final[re.Pattern[str]] = re.compile(
 def normalize_number_separators(expression: str) -> str:
     """Normalize grouped thousands and decimal commas in numeric literals."""
     normalized_expression = GROUPED_NUMBER_PATTERN.sub(
-        lambda match: match.group("number").replace(",", ""),
+        lambda match: (
+            match.group("number").replace(" ", "")
+            if " " in match.group("number")
+            else match.group("number").replace(",", "")
+        ),
         expression,
     )
     return DECIMAL_COMMA_PATTERN.sub(
