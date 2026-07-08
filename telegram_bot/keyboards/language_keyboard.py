@@ -13,6 +13,8 @@ from telegram_bot.localization.messages import get_message
 # Language selection callbacks
 CHANGE_LANGUAGE_CALLBACK_PREFIX: Final[str] = "change_language"
 SET_LANGUAGE_CALLBACK_PREFIX: Final[str] = "set_language"
+BOT_INFO_LANGUAGE_RESPONSE: Final[str] = "bot_info"
+COMMAND_LANGUAGE_RESPONSE: Final[str] = "command"
 LANGUAGE_BUTTON_KEYS: Final[dict[str, str]] = {
     "en": "language_english_button",
     "uk": "language_ukrainian_button",
@@ -44,6 +46,7 @@ def build_language_selection_keyboard(
     scope_type: str,
     scope_id: int,
     active_language: str,
+    response_mode: str = BOT_INFO_LANGUAGE_RESPONSE,
 ) -> InlineKeyboardMarkup:
     """Build English language choices and mark the active preference."""
     buttons: list[InlineKeyboardButton] = []
@@ -54,13 +57,18 @@ def build_language_selection_keyboard(
         if language == active_language:
             label = f"✅ {label}"
 
+        callback_data = (
+            f"{SET_LANGUAGE_CALLBACK_PREFIX}:{language}:"
+            f"{scope_type}:{scope_id}"
+        )
+
+        if response_mode == COMMAND_LANGUAGE_RESPONSE:
+            callback_data = f"{callback_data}:{COMMAND_LANGUAGE_RESPONSE}"
+
         buttons.append(
             InlineKeyboardButton(
                 text=label,
-                callback_data=(
-                    f"{SET_LANGUAGE_CALLBACK_PREFIX}:{language}:"
-                    f"{scope_type}:{scope_id}"
-                ),
+                callback_data=callback_data,
             )
         )
 

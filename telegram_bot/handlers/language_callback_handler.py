@@ -13,6 +13,8 @@ from telegram.ext import ContextTypes
 
 # Custom Modules
 from telegram_bot.keyboards.language_keyboard import (
+    BOT_INFO_LANGUAGE_RESPONSE,
+    COMMAND_LANGUAGE_RESPONSE,
     CHANGE_LANGUAGE_CALLBACK_PREFIX,
     SET_LANGUAGE_CALLBACK_PREFIX,
     build_language_selection_keyboard,
@@ -21,6 +23,8 @@ from telegram_bot.localization.language_preferences import (
     CHAT_LANGUAGE_SCOPE,
     DEFAULT_LANGUAGE,
     USER_LANGUAGE_SCOPE,
+    get_language_scope,
+    resolve_context_language,
     resolve_chat_language,
     resolve_user_language,
     save_chat_language,
@@ -39,7 +43,8 @@ CHANGE_LANGUAGE_CALLBACK_PATTERN: Final[str] = (
 )
 SET_LANGUAGE_CALLBACK_PATTERN: Final[str] = (
     rf"^{SET_LANGUAGE_CALLBACK_PREFIX}:(?:en|uk|ru):"
-    rf"{LANGUAGE_SCOPE_CALLBACK_REGEX}$"
+    rf"{LANGUAGE_SCOPE_CALLBACK_REGEX}"
+    rf"(?::{COMMAND_LANGUAGE_RESPONSE})?$"
 )
 CHANGE_LANGUAGE_DATA_PATTERN: Final[re.Pattern[str]] = re.compile(
     rf"{CHANGE_LANGUAGE_CALLBACK_PREFIX}:"
@@ -49,6 +54,7 @@ SET_LANGUAGE_DATA_PATTERN: Final[re.Pattern[str]] = re.compile(
     rf"{SET_LANGUAGE_CALLBACK_PREFIX}:"
     r"(?P<language>en|uk|ru):"
     r"(?P<scope_type>user|chat):(?P<scope_id>-?[1-9][0-9]*)"
+    rf"(?::(?P<response_mode>{COMMAND_LANGUAGE_RESPONSE}))?"
 )
 GROUP_LANGUAGE_MANAGER_STATUSES: Final[frozenset[str]] = frozenset(
     {ChatMemberStatus.OWNER, ChatMemberStatus.ADMINISTRATOR}
@@ -190,6 +196,55 @@ async def handle_change_language_callback(
     )
 
 
+async def handle_language_command(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+) -> None:
+    """Show language selection for a user or authorized group admin."""
+    message = update.effective_message
+    chat = update.effective_chat
+    user = update.effective_user
+
+    if message is None or chat is None or user is None:
+        return
+
+    scope = get_language_scope(chat.id, chat.type, user.id)
+
+    if scope is None or not await _can_manage_language_scope(
+        update,
+        context,
+        scope,
+    ):
+        LOGGER.warning(
+            "Language command denied | scope=%r, user_id=%s",
+            scope,
+            user.id,
+        )
+        return
+
+    language = resolve_context_language(
+        chat.id,
+        chat.type,
+        user.id,
+        user.language_code,
+    )
+    await message.reply_text(
+        text=get_message("choose_language", language=language),
+        do_quote=True,
+        reply_markup=build_language_selection_keyboard(
+            *scope,
+            language,
+            COMMAND_LANGUAGE_RESPONSE,
+        ),
+    )
+    LOGGER.info(
+        "Language command reply sent | scope=%r, user_id=%s, language=%s",
+        scope,
+        user.id,
+        language,
+    )
+
+
 async def handle_set_language_callback(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
@@ -220,16 +275,25 @@ async def handle_set_language_callback(
         return
 
     selected_language = match.group("language")
+    response_mode = match.group("response_mode")
 
     if not _save_scope_language(scope, selected_language):
         selected_language = DEFAULT_LANGUAGE
 
     await callback_query.edit_message_text(
-        text=get_message("bot_info", language=selected_language),
+        text=get_message(
+            (
+                "language_changed"
+                if response_mode == COMMAND_LANGUAGE_RESPONSE
+                else "bot_info"
+            ),
+            language=selected_language,
+        ),
         parse_mode=ParseMode.HTML,
         reply_markup=build_language_selection_keyboard(
             *scope,
             selected_language,
+            response_mode or BOT_INFO_LANGUAGE_RESPONSE,
         ),
     )
     LOGGER.info(

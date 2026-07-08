@@ -27,6 +27,8 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
                 "дату створення Telegram-акаунта",
                 "• у приватному чаті відкривати меню вибору іншого "
                 "користувача, бота, групи або каналу",
+                "• підтримувати English, українську та російську мови "
+                "повідомлень",
                 "",
                 "<b>Приклади:</b>",
                 "",
@@ -48,6 +50,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
                 "це повідомлення",
                 "<code>/id</code> — переглянути ID чату й користувача або "
                 "приблизну дату створення за ID",
+                "<code>/language</code> — змінити мову бота",
                 "",
                 "Автор: @deKibi",
                 "Канал: @cryptocodi",
@@ -74,6 +77,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
                 "Telegram account creation date",
                 "• open a menu in private chats to select another user, "
                 "bot, group or channel",
+                "• support English, Ukrainian and Russian messages",
                 "",
                 "<b>Examples:</b>",
                 "",
@@ -95,6 +99,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
                 "message",
                 "<code>/id</code> — view chat and user IDs or estimate an "
                 "account creation date by ID",
+                "<code>/language</code> — change the bot language",
                 "",
                 "Author: @deKibi",
                 "Channel: @cryptocodi",
@@ -122,6 +127,8 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
                 "примерную дату создания Telegram-аккаунта",
                 "• в личном чате открывать меню выбора другого "
                 "пользователя, бота, группы или канала",
+                "• поддерживать English, украинский и русский языки "
+                "сообщений",
                 "",
                 "<b>Примеры:</b>",
                 "",
@@ -143,6 +150,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
                 "это сообщение",
                 "<code>/id</code> — посмотреть ID чата и пользователя или "
                 "примерную дату создания по ID",
+                "<code>/language</code> — изменить язык бота",
                 "",
                 "Автор: @deKibi",
                 "Канал: @cryptocodi",
@@ -156,6 +164,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
     "command_start": {"en": "Show bot info and supported formats"},
     "command_help": {"en": "Show bot help and usage examples"},
     "command_id": {"en": "Show IDs or estimate account creation date"},
+    "command_language": {"en": "Change bot language"},
     "calculation_error": {
         "uk": "Не вдалося обчислити вираз.",
         "en": "Could not calculate the expression.",
@@ -354,6 +363,16 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
     "delete_button": {"en": "Delete"},
     "coin_chart_button": {"en": "📈 {coin_name}"},
     "change_language_button": {"en": "Change Language"},
+    "choose_language": {
+        "uk": "Оберіть мову:",
+        "en": "Choose language:",
+        "ru": "Выберите язык:",
+    },
+    "language_changed": {
+        "uk": "Мову змінено.",
+        "en": "Language changed.",
+        "ru": "Язык изменён.",
+    },
     "language_english_button": {"en": "English"},
     "language_ukrainian_button": {"en": "Ukrainian"},
     "language_russian_button": {"en": "Russian"},

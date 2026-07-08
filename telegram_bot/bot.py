@@ -47,6 +47,7 @@ from telegram_bot.handlers.language_callback_handler import (
     CHANGE_LANGUAGE_CALLBACK_PATTERN,
     SET_LANGUAGE_CALLBACK_PATTERN,
     handle_change_language_callback,
+    handle_language_command,
     handle_set_language_callback,
 )
 from telegram_bot.handlers.time_message_handler import handle_time_message
@@ -76,6 +77,7 @@ BOT_COMMANDS = [
     BotCommand("start", get_message("command_start")),
     BotCommand("help", get_message("command_help")),
     BotCommand("id", get_message("command_id")),
+    BotCommand("language", get_message("command_language")),
 ]
 
 
@@ -222,6 +224,13 @@ def create_application() -> Application:
 
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(
+        CommandHandler(
+            "language",
+            handle_language_command,
+            filters=supported_chats,
+        )
+    )
     application.add_handler(
         CallbackQueryHandler(
             handle_change_language_callback,
