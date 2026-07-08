@@ -7,7 +7,6 @@ from typing import Final
 
 # Third-party Libraries
 from telegram import Message, Update
-from telegram.constants import ChatMemberStatus, ChatType
 from telegram.error import TelegramError
 from telegram.ext import ContextTypes
 
@@ -19,6 +18,7 @@ from telegram_bot.localization.language_preferences import (
     resolve_context_language,
 )
 from telegram_bot.localization.messages import get_message
+from telegram_bot.services.delete_authorization import can_delete_bot_response
 
 
 LOGGER = logging.getLogger(__name__)
@@ -29,35 +29,6 @@ DELETE_BOT_INFO_DATA_PATTERN: Final[re.Pattern[str]] = re.compile(
     rf"{DELETE_BOT_INFO_CALLBACK_PREFIX}:"
     r"(?P<requester_user_id>[1-9][0-9]*)"
 )
-GROUP_ADMIN_STATUSES: Final[frozenset[str]] = frozenset(
-    {ChatMemberStatus.OWNER, ChatMemberStatus.ADMINISTRATOR}
-)
-
-
-async def _is_group_admin(
-    context: ContextTypes.DEFAULT_TYPE,
-    chat_id: int,
-    user_id: int,
-) -> bool:
-    try:
-        administrators = await context.bot.get_chat_administrators(chat_id)
-    except TelegramError as error:
-        LOGGER.warning(
-            "Bot info deletion authorization failed: %s | "
-            "chat_id=%s, user_id=%s",
-            error,
-            chat_id,
-            user_id,
-        )
-        return False
-
-    return any(
-        member.user.id == user_id
-        and member.status in GROUP_ADMIN_STATUSES
-        for member in administrators
-    )
-
-
 async def handle_delete_bot_info_callback(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
@@ -81,10 +52,13 @@ async def handle_delete_bot_info_callback(
         return
 
     requester_user_id = int(match.group("requester_user_id"))
-    can_delete = user.id == requester_user_id
-
-    if not can_delete and chat.type in {ChatType.GROUP, ChatType.SUPERGROUP}:
-        can_delete = await _is_group_admin(context, chat.id, user.id)
+    can_delete = await can_delete_bot_response(
+        context,
+        chat.id,
+        chat.type,
+        requester_user_id,
+        user.id,
+    )
 
     if not can_delete:
         language = resolve_context_language(
@@ -94,7 +68,7 @@ async def handle_delete_bot_info_callback(
             user.language_code,
         )
         await callback_query.answer(
-            text=get_message("bot_info_delete_denied", language=language),
+            text=get_message("delete_denied", language=language),
         )
         LOGGER.warning(
             "Bot info deletion denied | chat_id=%s, "

@@ -47,6 +47,7 @@ from telegram_bot.logging_config import (
     get_update_metadata,
     log_detected_crypto_conversion,
 )
+from telegram_bot.services.delete_authorization import can_delete_bot_response
 from telegram_bot.services.number_formatter import format_large_number
 from telegram_bot.state.message_reply_tracker import (
     forget_related_reply_message_id,
@@ -77,10 +78,10 @@ async def handle_delete_crypto_response(
     if callback_query is None:
         return
 
-    await callback_query.answer()
     response_message = callback_query.message
 
     if not isinstance(response_message, Message):
+        await callback_query.answer()
         LOGGER.warning("Crypto response deletion skipped: message unavailable")
         return
 
@@ -88,6 +89,7 @@ async def handle_delete_crypto_response(
     source_user = source_message.from_user if source_message is not None else None
 
     if source_message is None or source_user is None:
+        await callback_query.answer()
         LOGGER.warning(
             "Crypto response deletion skipped: source message unavailable | "
             "chat_id=%s, response_message_id=%s",
@@ -96,15 +98,35 @@ async def handle_delete_crypto_response(
         )
         return
 
-    if source_user.id != callback_query.from_user.id:
+    acting_user = callback_query.from_user
+    can_delete = await can_delete_bot_response(
+        context,
+        response_message.chat_id,
+        response_message.chat.type,
+        source_user.id,
+        acting_user.id,
+    )
+
+    if not can_delete:
+        language = resolve_context_language(
+            response_message.chat_id,
+            response_message.chat.type,
+            acting_user.id,
+            acting_user.language_code,
+        )
+        await callback_query.answer(
+            text=get_message("delete_denied", language=language),
+        )
         LOGGER.warning(
-            "Crypto response deletion denied: user is not source author | "
+            "Crypto response deletion denied | "
             "chat_id=%s, source_message_id=%s, user_id=%s",
             response_message.chat_id,
             source_message.message_id,
-            callback_query.from_user.id,
+            acting_user.id,
         )
         return
+
+    await callback_query.answer()
 
     try:
         await response_message.delete()
@@ -148,7 +170,7 @@ async def handle_delete_crypto_response(
         response_message.chat_id,
         source_message.message_id,
         response_message.message_id,
-        callback_query.from_user.id,
+        acting_user.id,
     )
 
 

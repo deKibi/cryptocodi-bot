@@ -361,7 +361,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
     "select_bot_button": {"en": "Bot"},
     "select_entity_placeholder": {"en": "Select an entity"},
     "delete_button": {"en": "Delete"},
-    "bot_info_delete_denied": {
+    "delete_denied": {
         "uk": "Ця кнопка не для вас.",
         "en": "This button is not for you.",
         "ru": "Эта кнопка не для вас.",

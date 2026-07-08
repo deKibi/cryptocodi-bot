@@ -42,6 +42,8 @@ def build_change_language_keyboard(
                         f"{scope_type}:{scope_id}:{requester_user_id}"
                     ),
                 ),
+            ],
+            [
                 InlineKeyboardButton(
                     text=get_message("delete_button"),
                     callback_data=(
