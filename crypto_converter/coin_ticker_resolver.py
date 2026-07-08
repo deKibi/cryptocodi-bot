@@ -20,7 +20,7 @@ BLOCKED_TICKERS: Final[frozenset[str]] = frozenset(
     {"KG", "CM", "UTC"}
 )
 FIAT_TICKERS: Final[frozenset[str]] = frozenset(
-    {"UAH", "EUR", "CAD"}
+    {"UAH", "EUR", "CAD", "PLN"}
 )
 
 
@@ -52,6 +52,8 @@ KNOWN_COINS: Final[dict[str, ResolvedCoin]] = {
     "UAH": ResolvedCoin("tether", "UAH", "Hryvnia"),
     "EUR": ResolvedCoin("tether", "EUR", "Euro"),
     "CAD": ResolvedCoin("tether", "CAD", "Canadian Dollar"),
+    "PLN": ResolvedCoin("tether", "PLN", "Zloty"),
+    "ZL": ResolvedCoin("tether", "PLN", "Zloty"),
 }
 TICKER_CACHE: dict[str, ResolvedCoin] = {}
 TOP_RANKED_TICKER_CACHE: dict[str, ResolvedCoin] = {}
@@ -124,6 +126,7 @@ def _build_coin_reference_index(
     reference_index["hryvnia"] = [KNOWN_COINS["UAH"]]
     reference_index["euro"] = [KNOWN_COINS["EUR"]]
     reference_index["canadian dollar"] = [KNOWN_COINS["CAD"]]
+    reference_index["zloty"] = [KNOWN_COINS["PLN"]]
     maximum_reference_length = max(
         (len(reference) for reference in reference_index),
         default=0,

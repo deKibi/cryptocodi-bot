@@ -40,10 +40,12 @@ class CoinGeckoUnitPrice:
     uah: Decimal
     eur: Decimal
     cad: Decimal
+    pln: Decimal
     usd_24h_change: Optional[Decimal] = None
     uah_24h_change: Optional[Decimal] = None
     eur_24h_change: Optional[Decimal] = None
     cad_24h_change: Optional[Decimal] = None
+    pln_24h_change: Optional[Decimal] = None
 
 
 @dataclass(frozen=True)
@@ -301,7 +303,7 @@ def get_coin_unit_price(coin_id: str) -> CoinGeckoUnitPrice:
         url=COINGECKO_SIMPLE_PRICE_URL,
         params={
             "ids": normalized_coin_id,
-            "vs_currencies": "usd,uah,eur,cad",
+            "vs_currencies": "usd,uah,eur,cad,pln",
             "include_24hr_change": "true",
         },
     )
@@ -322,6 +324,7 @@ def get_coin_unit_price(coin_id: str) -> CoinGeckoUnitPrice:
         uah=_parse_price(coin_data, "uah"),
         eur=_parse_price(coin_data, "eur"),
         cad=_parse_price(coin_data, "cad"),
+        pln=_parse_price(coin_data, "pln"),
         usd_24h_change=_parse_optional_percentage(
             coin_data,
             "usd_24h_change",
@@ -337,5 +340,9 @@ def get_coin_unit_price(coin_id: str) -> CoinGeckoUnitPrice:
         cad_24h_change=_parse_optional_percentage(
             coin_data,
             "cad_24h_change",
+        ),
+        pln_24h_change=_parse_optional_percentage(
+            coin_data,
+            "pln_24h_change",
         ),
     )
