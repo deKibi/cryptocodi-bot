@@ -44,30 +44,33 @@ LANGUAGE_SCOPE_CALLBACK_REGEX: Final[str] = (
 )
 CHANGE_LANGUAGE_CALLBACK_PATTERN: Final[str] = (
     rf"^{CHANGE_LANGUAGE_CALLBACK_PREFIX}:"
-    rf"{LANGUAGE_SCOPE_CALLBACK_REGEX}$"
+    rf"{LANGUAGE_SCOPE_CALLBACK_REGEX}:[1-9][0-9]*$"
 )
 BACK_TO_LANGUAGE_SETTINGS_CALLBACK_PATTERN: Final[str] = (
     rf"^{BACK_TO_LANGUAGE_SETTINGS_CALLBACK_PREFIX}:"
-    rf"{LANGUAGE_SCOPE_CALLBACK_REGEX}$"
+    rf"{LANGUAGE_SCOPE_CALLBACK_REGEX}:[1-9][0-9]*$"
 )
 SET_LANGUAGE_CALLBACK_PATTERN: Final[str] = (
     rf"^{SET_LANGUAGE_CALLBACK_PREFIX}:(?:en|uk|ru):"
     rf"{LANGUAGE_SCOPE_CALLBACK_REGEX}"
-    rf"(?::{COMMAND_LANGUAGE_RESPONSE})?$"
+    rf":(?:[1-9][0-9]*|{COMMAND_LANGUAGE_RESPONSE})$"
 )
 CHANGE_LANGUAGE_DATA_PATTERN: Final[re.Pattern[str]] = re.compile(
     rf"{CHANGE_LANGUAGE_CALLBACK_PREFIX}:"
-    r"(?P<scope_type>user|chat):(?P<scope_id>-?[1-9][0-9]*)"
+    r"(?P<scope_type>user|chat):(?P<scope_id>-?[1-9][0-9]*):"
+    r"(?P<requester_user_id>[1-9][0-9]*)"
 )
 BACK_TO_LANGUAGE_SETTINGS_DATA_PATTERN: Final[re.Pattern[str]] = re.compile(
     rf"{BACK_TO_LANGUAGE_SETTINGS_CALLBACK_PREFIX}:"
-    r"(?P<scope_type>user|chat):(?P<scope_id>-?[1-9][0-9]*)"
+    r"(?P<scope_type>user|chat):(?P<scope_id>-?[1-9][0-9]*):"
+    r"(?P<requester_user_id>[1-9][0-9]*)"
 )
 SET_LANGUAGE_DATA_PATTERN: Final[re.Pattern[str]] = re.compile(
     rf"{SET_LANGUAGE_CALLBACK_PREFIX}:"
     r"(?P<language>en|uk|ru):"
     r"(?P<scope_type>user|chat):(?P<scope_id>-?[1-9][0-9]*)"
-    rf"(?::(?P<response_mode>{COMMAND_LANGUAGE_RESPONSE}))?"
+    rf":(?:(?P<requester_user_id>[1-9][0-9]*)|"
+    rf"(?P<response_mode>{COMMAND_LANGUAGE_RESPONSE}))"
 )
 GROUP_LANGUAGE_MANAGER_STATUSES: Final[frozenset[str]] = frozenset(
     {ChatMemberStatus.OWNER, ChatMemberStatus.ADMINISTRATOR}
@@ -113,6 +116,26 @@ def _parse_language_scope(
         return scope_type, scope_id
 
     return None
+
+
+def _parse_requester_user_id(
+    callback_data: Optional[str],
+    pattern: re.Pattern[str],
+) -> Optional[int]:
+    if callback_data is None:
+        return None
+
+    match = pattern.fullmatch(callback_data)
+
+    if match is None:
+        return None
+
+    requester_user_id = match.groupdict().get("requester_user_id")
+
+    if requester_user_id is None:
+        return None
+
+    return int(requester_user_id)
 
 
 async def _can_manage_language_scope(
@@ -195,11 +218,15 @@ async def handle_change_language_callback(
         callback_query.data,
         CHANGE_LANGUAGE_DATA_PATTERN,
     )
+    requester_user_id = _parse_requester_user_id(
+        callback_query.data,
+        CHANGE_LANGUAGE_DATA_PATTERN,
+    )
 
-    if scope is None or not await _can_manage_language_scope(
-        update,
-        context,
-        scope,
+    if (
+        scope is None
+        or requester_user_id is None
+        or not await _can_manage_language_scope(update, context, scope)
     ):
         LOGGER.warning(
             "Language selection denied | scope=%r, user_id=%s",
@@ -214,6 +241,7 @@ async def handle_change_language_callback(
         reply_markup=build_language_selection_keyboard(
             *scope,
             language,
+            requester_user_id=requester_user_id,
         )
     )
     LOGGER.info(
@@ -239,11 +267,15 @@ async def handle_back_to_language_settings_callback(
         callback_query.data,
         BACK_TO_LANGUAGE_SETTINGS_DATA_PATTERN,
     )
+    requester_user_id = _parse_requester_user_id(
+        callback_query.data,
+        BACK_TO_LANGUAGE_SETTINGS_DATA_PATTERN,
+    )
 
-    if scope is None or not await _can_manage_language_scope(
-        update,
-        context,
-        scope,
+    if (
+        scope is None
+        or requester_user_id is None
+        or not await _can_manage_language_scope(update, context, scope)
     ):
         LOGGER.warning(
             "Language selector close denied | scope=%r, user_id=%s",
@@ -253,7 +285,10 @@ async def handle_back_to_language_settings_callback(
         return
 
     await callback_query.edit_message_reply_markup(
-        reply_markup=build_change_language_keyboard(*scope),
+        reply_markup=build_change_language_keyboard(
+            *scope,
+            requester_user_id,
+        ),
     )
     LOGGER.info(
         "Language selector closed | scope=%r, user_id=%s",
@@ -364,11 +399,24 @@ async def handle_set_language_callback(
 
     selected_language = match.group("language")
     response_mode = match.group("response_mode")
+    requester_user_id = _parse_requester_user_id(
+        callback_query.data,
+        SET_LANGUAGE_DATA_PATTERN,
+    )
+    is_command_response = response_mode == COMMAND_LANGUAGE_RESPONSE
+
+    if not is_command_response and requester_user_id is None:
+        LOGGER.warning(
+            "Language change denied: requester unavailable | "
+            "scope=%r, user_id=%s",
+            scope,
+            callback_query.from_user.id,
+        )
+        return
 
     if not _save_scope_language(scope, selected_language):
         selected_language = DEFAULT_LANGUAGE
 
-    is_command_response = response_mode == COMMAND_LANGUAGE_RESPONSE
     await callback_query.edit_message_text(
         text=get_message(
             (
@@ -382,7 +430,10 @@ async def handle_set_language_callback(
         reply_markup=(
             None
             if is_command_response
-            else build_change_language_keyboard(*scope)
+            else build_change_language_keyboard(
+                *scope,
+                requester_user_id,
+            )
         ),
     )
     LOGGER.info(

@@ -31,6 +31,10 @@ from config import (
     TELEGRAM_BOT_TOKEN,
     log_configuration_warnings,
 )
+from telegram_bot.handlers.bot_info_callback_handler import (
+    DELETE_BOT_INFO_CALLBACK_PATTERN,
+    handle_delete_bot_info_callback,
+)
 from telegram_bot.handlers.calculator_message_handler import (
     handle_calculator_message,
 )
@@ -164,8 +168,8 @@ async def _send_bot_info(
         user.id if user is not None else None,
     )
     response_keyboard = (
-        build_change_language_keyboard(*language_scope)
-        if language_scope is not None
+        build_change_language_keyboard(*language_scope, user.id)
+        if language_scope is not None and user is not None
         else None
     )
     await message.reply_text(
@@ -249,6 +253,12 @@ def create_application() -> Application:
         CallbackQueryHandler(
             handle_set_language_callback,
             pattern=SET_LANGUAGE_CALLBACK_PATTERN,
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            handle_delete_bot_info_callback,
+            pattern=DELETE_BOT_INFO_CALLBACK_PATTERN,
         )
     )
     application.add_handler(
