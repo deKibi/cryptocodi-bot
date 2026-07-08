@@ -258,7 +258,7 @@ def _get_unique_crypto_amounts(
     allow_embedded_usdt: bool,
 ) -> list[ResolvedCryptoAmount]:
     unique_crypto_amounts: list[ResolvedCryptoAmount] = []
-    seen_pairs: set[tuple[Decimal, str]] = set()
+    seen_pairs: set[tuple[Decimal, str, str]] = set()
     exact_crypto_amounts = resolve_crypto_amounts_from_text(message_text)
     is_conversion_only = contains_only_resolved_crypto_amounts(
         message_text,
@@ -277,6 +277,7 @@ def _get_unique_crypto_amounts(
         pair = (
             resolved_crypto_amount.amount,
             resolved_crypto_amount.coin.coin_id,
+            resolved_crypto_amount.coin.ticker,
         )
 
         if (
@@ -493,6 +494,7 @@ async def handle_crypto_message(
             (
                 resolved_crypto_amount.amount,
                 resolved_crypto_amount.coin.coin_id,
+                resolved_crypto_amount.coin.ticker,
             )
             for resolved_crypto_amount in resolved_crypto_amounts
         )
@@ -504,6 +506,7 @@ async def handle_crypto_message(
                     crypto_calculation.calculation_expression.split()
                 ),
                 resolved_calculation_coin.coin_id,
+                resolved_calculation_coin.ticker,
             ),
         )
 

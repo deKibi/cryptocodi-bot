@@ -19,6 +19,9 @@ from crypto_converter.coingecko_client import (
 BLOCKED_TICKERS: Final[frozenset[str]] = frozenset(
     {"KG", "CM", "UTC"}
 )
+FIAT_TICKERS: Final[frozenset[str]] = frozenset(
+    {"UAH", "EUR", "CAD"}
+)
 
 
 @dataclass(frozen=True)
@@ -47,6 +50,8 @@ KNOWN_COINS: Final[dict[str, ResolvedCoin]] = {
     "USD": ResolvedCoin("tether", "USDT", "Tether"),
     "USDT": ResolvedCoin("tether", "USDT", "Tether"),
     "UAH": ResolvedCoin("tether", "UAH", "Hryvnia"),
+    "EUR": ResolvedCoin("tether", "EUR", "Euro"),
+    "CAD": ResolvedCoin("tether", "CAD", "Canadian Dollar"),
 }
 TICKER_CACHE: dict[str, ResolvedCoin] = {}
 TOP_RANKED_TICKER_CACHE: dict[str, ResolvedCoin] = {}
@@ -99,7 +104,7 @@ def _build_coin_reference_index(
     for reference, known_coin in KNOWN_COINS.items():
         if (
             restrict_known_coins
-            and known_coin.ticker != "UAH"
+            and known_coin.ticker not in FIAT_TICKERS
             and known_coin.coin_id not in eligible_coin_ids
         ):
             continue
@@ -117,6 +122,8 @@ def _build_coin_reference_index(
             reference_coins.append(known_coin)
 
     reference_index["hryvnia"] = [KNOWN_COINS["UAH"]]
+    reference_index["euro"] = [KNOWN_COINS["EUR"]]
+    reference_index["canadian dollar"] = [KNOWN_COINS["CAD"]]
     maximum_reference_length = max(
         (len(reference) for reference in reference_index),
         default=0,

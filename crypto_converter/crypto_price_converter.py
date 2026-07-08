@@ -3,14 +3,22 @@
 # Standard Libraries
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Optional
+from typing import Final, Optional
 
 # Custom Modules
-from crypto_converter.coin_ticker_resolver import ResolvedCoin, resolve_coin
+from crypto_converter.coin_ticker_resolver import (
+    FIAT_TICKERS,
+    ResolvedCoin,
+    resolve_coin,
+)
 from crypto_converter.coingecko_client import (
     CoinGeckoAPIError,
     get_coin_unit_price,
 )
+
+
+# Fiat conversion
+PERCENT_BASE: Final[Decimal] = Decimal("100")
 
 
 @dataclass(frozen=True)
@@ -28,23 +36,64 @@ class CryptoPriceConversion:
     coin_name: str = ""
 
 
-def _convert_uah_to_fiat(amount: Decimal) -> CryptoPriceConversion:
+def _calculate_cross_rate_24h_change(
+    usd_24h_change: Optional[Decimal],
+    source_24h_change: Optional[Decimal],
+) -> Optional[Decimal]:
+    if usd_24h_change is None or source_24h_change is None:
+        return None
+
+    source_change_multiplier = (
+        Decimal("1") + source_24h_change / PERCENT_BASE
+    )
+    usd_change_multiplier = Decimal("1") + usd_24h_change / PERCENT_BASE
+
+    if source_change_multiplier <= 0 or usd_change_multiplier <= 0:
+        return None
+
+    return (
+        usd_change_multiplier / source_change_multiplier - Decimal("1")
+    ) * PERCENT_BASE
+
+
+def _convert_fiat_currency(
+    amount: Decimal,
+    resolved_coin: ResolvedCoin,
+) -> CryptoPriceConversion:
     tether_unit_price = get_coin_unit_price("tether")
+    source_prices = {
+        "UAH": tether_unit_price.uah,
+        "EUR": tether_unit_price.eur,
+        "CAD": tether_unit_price.cad,
+    }
+    source_24h_changes = {
+        "UAH": tether_unit_price.uah_24h_change,
+        "EUR": tether_unit_price.eur_24h_change,
+        "CAD": tether_unit_price.cad_24h_change,
+    }
+    source_price = source_prices[resolved_coin.ticker]
 
-    if tether_unit_price.uah == 0:
-        raise CoinGeckoAPIError("CoinGecko returned a zero UAH price")
+    if source_price == 0:
+        raise CoinGeckoAPIError(
+            f"CoinGecko returned a zero {resolved_coin.ticker} price"
+        )
 
-    unit_price_usd = tether_unit_price.usd / tether_unit_price.uah
+    unit_price_usd = tether_unit_price.usd / source_price
+    unit_price_uah = tether_unit_price.uah / source_price
 
     return CryptoPriceConversion(
         amount=amount,
-        ticker="UAH",
+        ticker=resolved_coin.ticker,
         coin_id="tether",
         unit_price_usd=unit_price_usd,
-        unit_price_uah=Decimal("1"),
+        unit_price_uah=unit_price_uah,
         total_usd=amount * unit_price_usd,
-        total_uah=amount,
-        coin_name="Hryvnia",
+        total_uah=amount * unit_price_uah,
+        usd_24h_change=_calculate_cross_rate_24h_change(
+            tether_unit_price.usd_24h_change,
+            source_24h_changes[resolved_coin.ticker],
+        ),
+        coin_name=resolved_coin.name,
     )
 
 
@@ -72,8 +121,8 @@ def convert_resolved_coin_to_fiat(
     if amount <= 0:
         raise ValueError("amount must be greater than zero")
 
-    if resolved_coin.ticker == "UAH":
-        return _convert_uah_to_fiat(amount)
+    if resolved_coin.ticker in FIAT_TICKERS:
+        return _convert_fiat_currency(amount, resolved_coin)
 
     unit_price = get_coin_unit_price(resolved_coin.coin_id)
 
