@@ -65,11 +65,13 @@ def _convert_fiat_currency(
         "UAH": tether_unit_price.uah,
         "EUR": tether_unit_price.eur,
         "CAD": tether_unit_price.cad,
+        "PLN": tether_unit_price.pln,
     }
     source_24h_changes = {
         "UAH": tether_unit_price.uah_24h_change,
         "EUR": tether_unit_price.eur_24h_change,
         "CAD": tether_unit_price.cad_24h_change,
+        "PLN": tether_unit_price.pln_24h_change,
     }
     source_price = source_prices[resolved_coin.ticker]
 
