@@ -373,6 +373,19 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
         "en": "Language changed.",
         "ru": "Язык изменён.",
     },
+    "group_language_admin_only": {
+        "uk": (
+            "Лише адміністратори групи можуть змінювати мову бота "
+            "в цьому чаті."
+        ),
+        "en": (
+            "Only group admins can change the bot language in this chat."
+        ),
+        "ru": (
+            "Только администраторы группы могут изменять язык бота "
+            "в этом чате."
+        ),
+    },
     "language_english_button": {"en": "English"},
     "language_ukrainian_button": {"en": "Ukrainian"},
     "language_russian_button": {"en": "Russian"},

@@ -1,12 +1,13 @@
 # telegram_bot/handlers/language_callback_handler.py
 
 # Standard Libraries
+import asyncio
 import logging
 import re
 from typing import Final, Optional
 
 # Third-party Libraries
-from telegram import Update
+from telegram import Message, Update
 from telegram.constants import ChatMemberStatus, ParseMode
 from telegram.error import TelegramError
 from telegram.ext import ContextTypes
@@ -24,6 +25,7 @@ from telegram_bot.localization.language_preferences import (
     DEFAULT_LANGUAGE,
     USER_LANGUAGE_SCOPE,
     get_language_scope,
+    get_existing_chat_language,
     resolve_context_language,
     resolve_chat_language,
     resolve_user_language,
@@ -34,6 +36,7 @@ from telegram_bot.localization.messages import get_message
 
 
 LOGGER = logging.getLogger(__name__)
+NON_ADMIN_LANGUAGE_NOTICE_SECONDS: Final[int] = 15
 LANGUAGE_SCOPE_CALLBACK_REGEX: Final[str] = (
     r"(?:user:[1-9][0-9]*|chat:-[1-9][0-9]*)"
 )
@@ -61,6 +64,21 @@ GROUP_LANGUAGE_MANAGER_STATUSES: Final[frozenset[str]] = frozenset(
 )
 
 LanguageScope = tuple[str, int]
+
+
+async def _delete_temporary_message(message: Message) -> None:
+    await asyncio.sleep(NON_ADMIN_LANGUAGE_NOTICE_SECONDS)
+
+    try:
+        await message.delete()
+    except TelegramError as error:
+        LOGGER.warning(
+            "Temporary language notice deletion failed: %s | "
+            "chat_id=%s, message_id=%s",
+            error,
+            message.chat_id,
+            message.message_id,
+        )
 
 
 def _parse_language_scope(
@@ -210,7 +228,10 @@ async def handle_language_command(
 
     scope = get_language_scope(chat.id, chat.type, user.id)
 
-    if scope is None or not await _can_manage_language_scope(
+    if scope is None:
+        return
+
+    if not await _can_manage_language_scope(
         update,
         context,
         scope,
@@ -220,6 +241,25 @@ async def handle_language_command(
             scope,
             user.id,
         )
+
+        if scope[0] == CHAT_LANGUAGE_SCOPE:
+            language = (
+                get_existing_chat_language(scope[1])
+                or DEFAULT_LANGUAGE
+            )
+            notice_message = await message.reply_text(
+                text=get_message(
+                    "group_language_admin_only",
+                    language=language,
+                ),
+                do_quote=True,
+            )
+            context.application.create_task(
+                _delete_temporary_message(notice_message),
+                update=update,
+                name="delete-non-admin-language-notice",
+            )
+
         return
 
     language = resolve_context_language(

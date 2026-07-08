@@ -359,6 +359,41 @@ def resolve_chat_language(
     )
 
 
+def get_existing_chat_language(chat_id: int) -> Optional[str]:
+    """Return an existing chat language without creating a setting."""
+    scope_key = (CHAT_LANGUAGE_SCOPE, chat_id)
+    cached_preference = _language_preference_cache.get(scope_key)
+
+    if cached_preference is not None:
+        _language_preference_cache.move_to_end(scope_key)
+        return cached_preference[0]
+
+    try:
+        stored_preference = _get_stored_preference(
+            CHAT_LANGUAGE_SCOPE,
+            chat_id,
+        )
+    except (OSError, sqlite3.Error):
+        LOGGER.exception(
+            "Failed to read existing chat language | chat_id=%s",
+            chat_id,
+        )
+        return None
+
+    if stored_preference is None:
+        return None
+
+    if not _is_valid_preference(stored_preference):
+        LOGGER.warning(
+            "Invalid stored chat language preference | chat_id=%s",
+            chat_id,
+        )
+        return DEFAULT_LANGUAGE
+
+    _remember_language_preference(scope_key, stored_preference)
+    return stored_preference[0]
+
+
 def resolve_context_language(
     chat_id: Optional[int],
     chat_type: object,
