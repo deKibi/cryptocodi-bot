@@ -9,6 +9,8 @@ from typing import Final, Optional
 
 # Custom Modules
 from calculator.compact_number_normalizer import (
+    COMPACT_NUMBER_MULTIPLIERS,
+    COMPACT_NUMBER_SUFFIX_REGEX,
     NUMBER_LITERAL_REGEX,
     normalize_number_separators,
 )
@@ -20,17 +22,16 @@ from crypto_converter.coin_ticker_resolver import (
 
 
 # Crypto amount pattern
-THOUSAND_MULTIPLIER: Final[Decimal] = Decimal("1000")
 CRYPTO_AMOUNT_PATTERN: Final[re.Pattern[str]] = re.compile(
     rf"(?<![\w.,:-])(?P<amount>{NUMBER_LITERAL_REGEX})"
-    r"(?P<multiplier>k)?\s+"
+    rf"(?P<multiplier>[{COMPACT_NUMBER_SUFFIX_REGEX}])?\s+"
     r"(?P<dollar>\$)?"
     r"(?P<ticker>(?:(?<=[\s$])[A-Za-z]|[A-Za-z]{2,10}))(?!\w)",
     flags=re.IGNORECASE,
 )
 CRYPTO_AMOUNT_PREFIX_PATTERN: Final[re.Pattern[str]] = re.compile(
     rf"(?<![\w.,:-])(?P<amount>{NUMBER_LITERAL_REGEX})"
-    r"(?P<multiplier>k)?\s+",
+    rf"(?P<multiplier>[{COMPACT_NUMBER_SUFFIX_REGEX}])?\s+",
     flags=re.IGNORECASE,
 )
 
@@ -62,8 +63,10 @@ def _parse_crypto_amount_match(
         normalize_number_separators(match.group("amount"))
     )
 
-    if match.group("multiplier") is not None:
-        normalized_amount *= THOUSAND_MULTIPLIER
+    multiplier = match.group("multiplier")
+
+    if multiplier is not None:
+        normalized_amount *= COMPACT_NUMBER_MULTIPLIERS[multiplier.lower()]
 
     return ParsedCryptoAmount(
         amount=normalized_amount,
@@ -110,8 +113,10 @@ def _is_dollar_prefixed(text: str, start: int) -> bool:
 def _parse_amount_value(match: re.Match[str]) -> Decimal:
     amount = Decimal(normalize_number_separators(match.group("amount")))
 
-    if match.group("multiplier") is not None:
-        amount *= THOUSAND_MULTIPLIER
+    multiplier = match.group("multiplier")
+
+    if multiplier is not None:
+        amount *= COMPACT_NUMBER_MULTIPLIERS[multiplier.lower()]
 
     return amount
 

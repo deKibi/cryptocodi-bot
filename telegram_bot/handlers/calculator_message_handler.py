@@ -11,6 +11,7 @@ from telegram.ext import ContextTypes
 
 # Custom Modules
 from calculator.calculator import CalculatorError, calculate
+from calculator.compact_number_normalizer import COMPACT_NUMBER_MULTIPLIERS
 from calculator.expression_parser import (
     ALTERNATIVE_OPERATORS,
     parse_expression,
@@ -41,7 +42,10 @@ def _format_calculation_result(
     result: int | float,
 ) -> str:
     if (
-        "k" in expression.lower()
+        any(
+            suffix in expression.lower()
+            for suffix in COMPACT_NUMBER_MULTIPLIERS
+        )
         and isinstance(result, float)
         and result.is_integer()
     ):

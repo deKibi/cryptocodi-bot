@@ -6,6 +6,11 @@ from typing import Final
 
 
 # Number normalization
+COMPACT_NUMBER_MULTIPLIERS: Final[dict[str, int]] = {
+    "k": 1_000,
+    "m": 1_000_000,
+}
+COMPACT_NUMBER_SUFFIX_REGEX: Final[str] = r"kKmM"
 NON_ZERO_GROUPED_INTEGER_REGEX: Final[str] = (
     r"(?:[1-9]\d{0,2}|0[1-9]\d?|00[1-9])"
 )
@@ -18,14 +23,15 @@ NUMBER_LITERAL_REGEX: Final[str] = (
 )
 GROUPED_NUMBER_PATTERN: Final[re.Pattern[str]] = re.compile(
     rf"(?<![\w.,])(?P<number>{GROUPED_NUMBER_REGEX})"
-    r"(?=[kK]\b|[^\w.,]|$)"
+    rf"(?=[{COMPACT_NUMBER_SUFFIX_REGEX}]\b|[^\w.,]|$)"
 )
 DECIMAL_COMMA_PATTERN: Final[re.Pattern[str]] = re.compile(
     r"(?<![\w.,])(?P<integer>\d+),(?P<fraction>\d+)"
-    r"(?=[kK]\b|[^\w.,]|$)"
+    rf"(?=[{COMPACT_NUMBER_SUFFIX_REGEX}]\b|[^\w.,]|$)"
 )
 COMPACT_NUMBER_PATTERN: Final[re.Pattern[str]] = re.compile(
-    r"(?<![\w.])(?P<number>\d+(?:\.\d+)?)[kK]\b"
+    rf"(?<![\w.])(?P<number>\d+(?:\.\d+)?)"
+    rf"(?P<suffix>[{COMPACT_NUMBER_SUFFIX_REGEX}])\b"
 )
 
 
@@ -44,8 +50,11 @@ def normalize_number_separators(expression: str) -> str:
 
 
 def expand_compact_numbers(expression: str) -> str:
-    """Expand compact number suffixes such as 2.5k into multiplication."""
+    """Expand compact thousand and million suffixes into multiplication."""
     return COMPACT_NUMBER_PATTERN.sub(
-        lambda match: f"({match.group('number')}*1000)",
+        lambda match: (
+            f"({match.group('number')}*"
+            f"{COMPACT_NUMBER_MULTIPLIERS[match.group('suffix').lower()]})"
+        ),
         expression,
     )

@@ -21,7 +21,7 @@ ALTERNATIVE_OPERATORS: Final[dict[int, str]] = str.maketrans({
     "−": "-",
 })
 EXPRESSION_PATTERN: Final[re.Pattern[str]] = re.compile(
-    r"[\d\s.kK()+\-*/]+"
+    r"[\d\s.kKmM()+\-*/]+"
 )
 SUPPORTED_AST_NODES: Final[tuple[type[ast.AST], ...]] = (
     ast.Expression,
