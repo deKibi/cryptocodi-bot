@@ -23,14 +23,14 @@ from crypto_converter.coin_ticker_resolver import (
 THOUSAND_MULTIPLIER: Final[Decimal] = Decimal("1000")
 CRYPTO_AMOUNT_PATTERN: Final[re.Pattern[str]] = re.compile(
     rf"(?<![\w.,:-])(?P<amount>{NUMBER_LITERAL_REGEX})"
-    r"(?:(?P<multiplier>k)\s+|\s*)"
+    r"(?P<multiplier>k)?\s+"
     r"(?P<dollar>\$)?"
     r"(?P<ticker>(?:(?<=[\s$])[A-Za-z]|[A-Za-z]{2,10}))(?!\w)",
     flags=re.IGNORECASE,
 )
 CRYPTO_AMOUNT_PREFIX_PATTERN: Final[re.Pattern[str]] = re.compile(
     rf"(?<![\w.,:-])(?P<amount>{NUMBER_LITERAL_REGEX})"
-    r"(?:(?P<multiplier>k)\s+|\s*)",
+    r"(?P<multiplier>k)?\s+",
     flags=re.IGNORECASE,
 )
 
