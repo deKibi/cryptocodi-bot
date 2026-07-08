@@ -79,6 +79,9 @@ def _find_crypto_amount_matches(text: str) -> list[re.Match[str]]:
     matches: list[re.Match[str]] = []
 
     for match in CRYPTO_AMOUNT_PATTERN.finditer(text):
+        if _follows_separated_digit(text, match.start()):
+            continue
+
         preceding_index = match.start() - 1
 
         while preceding_index >= 0 and text[preceding_index].isspace():
@@ -108,6 +111,15 @@ def _is_dollar_prefixed(text: str, start: int) -> bool:
         preceding_index -= 1
 
     return preceding_index >= 0 and text[preceding_index] == "$"
+
+
+def _follows_separated_digit(text: str, start: int) -> bool:
+    preceding_index = start - 1
+
+    while preceding_index >= 0 and text[preceding_index].isspace():
+        preceding_index -= 1
+
+    return preceding_index >= 0 and text[preceding_index].isdigit()
 
 
 def _parse_amount_value(match: re.Match[str]) -> Decimal:
@@ -196,6 +208,7 @@ def resolve_crypto_amounts_from_text(
         if (
             amount_match.start() < previous_match_end
             or _is_dollar_prefixed(text, amount_match.start())
+            or _follows_separated_digit(text, amount_match.start())
         ):
             continue
 

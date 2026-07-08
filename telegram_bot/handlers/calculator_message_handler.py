@@ -22,6 +22,7 @@ from telegram_bot.logging_config import (
     get_update_metadata,
     log_detected_calculation,
 )
+from telegram_bot.services.number_formatter import format_large_number
 from telegram_bot.state.message_reply_tracker import (
     get_related_reply_message_id,
     remember_related_reply_message_id,
@@ -49,9 +50,11 @@ def _format_calculation_result(
         and isinstance(result, float)
         and result.is_integer()
     ):
-        return str(int(result))
+        formatted_result = str(int(result))
+    else:
+        formatted_result = str(result)
 
-    return str(result)
+    return format_large_number(formatted_result)
 
 
 def format_calculation_response(

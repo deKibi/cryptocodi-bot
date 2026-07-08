@@ -43,6 +43,7 @@ from telegram_bot.logging_config import (
     get_update_metadata,
     log_detected_crypto_conversion,
 )
+from telegram_bot.services.number_formatter import format_large_number
 from telegram_bot.state.message_reply_tracker import (
     forget_related_reply_message_id,
     get_related_reply_message_id,
@@ -150,12 +151,12 @@ async def handle_delete_crypto_response(
 def _format_decimal(value: Decimal) -> str:
     formatted_value = format(value, ".8f").rstrip("0").rstrip(".")
 
-    return formatted_value or "0"
+    return format_large_number(formatted_value or "0")
 
 
 def _format_fiat_amount(value: Decimal) -> str:
-    if value >= 1:
-        return format(value, ",.2f").replace(",", " ")
+    if abs(value) >= 1:
+        return format_large_number(format(value, ".2f"))
 
     return _format_decimal(value)
 
