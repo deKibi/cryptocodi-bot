@@ -7,6 +7,7 @@ from typing import Final, Optional
 
 # Custom Modules
 from calculator.compact_number_normalizer import (
+    COMPACT_NUMBER_PATTERN,
     expand_compact_numbers,
     normalize_number_separators,
 )
@@ -38,11 +39,16 @@ SUPPORTED_AST_NODES: Final[tuple[type[ast.AST], ...]] = (
 )
 
 
-def _has_supported_syntax(expression: str) -> bool:
+def _has_supported_syntax(
+    expression: str,
+    require_binary_operation: bool = False,
+) -> bool:
     try:
         expression_tree = ast.parse(expression, mode="eval")
     except (SyntaxError, ValueError):
         return False
+
+    has_binary_operation = False
 
     for node in ast.walk(expression_tree):
         if not isinstance(node, SUPPORTED_AST_NODES):
@@ -51,7 +57,17 @@ def _has_supported_syntax(expression: str) -> bool:
         if isinstance(node, ast.Constant) and type(node.value) not in (int, float):
             return False
 
-    return True
+        if isinstance(node, ast.BinOp):
+            has_binary_operation = True
+
+    return has_binary_operation or not require_binary_operation
+
+
+def _remove_compact_number_suffixes(expression: str) -> str:
+    return COMPACT_NUMBER_PATTERN.sub(
+        lambda match: match.group("number"),
+        expression,
+    )
 
 
 def parse_expression(message_text: str) -> Optional[str]:
@@ -59,11 +75,20 @@ def parse_expression(message_text: str) -> Optional[str]:
     if not isinstance(message_text, str):
         return None
 
-    normalized_expression = expand_compact_numbers(
-        normalize_number_separators(
-            message_text.strip().translate(ALTERNATIVE_OPERATORS)
-        )
+    prepared_expression = normalize_number_separators(
+        message_text.strip().translate(ALTERNATIVE_OPERATORS)
     )
+    validation_expression = _remove_compact_number_suffixes(
+        prepared_expression
+    )
+
+    if not _has_supported_syntax(
+        validation_expression,
+        require_binary_operation=True,
+    ):
+        return None
+
+    normalized_expression = expand_compact_numbers(prepared_expression)
 
     if not normalized_expression:
         return None
