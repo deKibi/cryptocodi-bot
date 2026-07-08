@@ -30,30 +30,44 @@ def build_change_language_keyboard(
     scope_type: str,
     scope_id: int,
     requester_user_id: int,
+    invite_url: Optional[str] = None,
 ) -> InlineKeyboardMarkup:
     """Build the root actions for one bot-information message."""
-    return InlineKeyboardMarkup(
+    keyboard = [
         [
-            [
-                InlineKeyboardButton(
-                    text=get_message("change_language_button"),
-                    callback_data=(
-                        f"{CHANGE_LANGUAGE_CALLBACK_PREFIX}:"
-                        f"{scope_type}:{scope_id}:{requester_user_id}"
-                    ),
+            InlineKeyboardButton(
+                text=get_message("change_language_button"),
+                callback_data=(
+                    f"{CHANGE_LANGUAGE_CALLBACK_PREFIX}:"
+                    f"{scope_type}:{scope_id}:{requester_user_id}"
                 ),
-            ],
+            ),
+        ],
+    ]
+
+    if invite_url is not None:
+        keyboard.append(
             [
                 InlineKeyboardButton(
-                    text=get_message("delete_button"),
-                    callback_data=(
-                        f"{DELETE_BOT_INFO_CALLBACK_PREFIX}:"
-                        f"{requester_user_id}"
-                    ),
+                    text=get_message("invite_bot_button"),
+                    url=invite_url,
                 ),
             ]
+        )
+
+    keyboard.append(
+        [
+            InlineKeyboardButton(
+                text=get_message("delete_button"),
+                callback_data=(
+                    f"{DELETE_BOT_INFO_CALLBACK_PREFIX}:"
+                    f"{requester_user_id}"
+                ),
+            ),
         ]
     )
+
+    return InlineKeyboardMarkup(keyboard)
 
 
 def build_language_selection_keyboard(

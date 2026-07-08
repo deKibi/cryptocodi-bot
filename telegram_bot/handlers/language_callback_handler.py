@@ -7,7 +7,7 @@ import re
 from typing import Final, Optional
 
 # Third-party Libraries
-from telegram import Message, Update
+from telegram import InlineKeyboardMarkup, Message, Update
 from telegram.constants import ChatMemberStatus, ParseMode
 from telegram.error import TelegramError
 from telegram.ext import ContextTypes
@@ -35,6 +35,7 @@ from telegram_bot.localization.language_preferences import (
     save_user_language,
 )
 from telegram_bot.localization.messages import get_message
+from telegram_bot.services.bot_invitation import build_bot_invitation_url
 
 
 LOGGER = logging.getLogger(__name__)
@@ -203,6 +204,26 @@ def _save_scope_language(
     return save_chat_language(scope_id, language)
 
 
+def _build_root_language_keyboard(
+    context: ContextTypes.DEFAULT_TYPE,
+    scope: LanguageScope,
+    requester_user_id: int,
+) -> InlineKeyboardMarkup:
+    invite_url = (
+        build_bot_invitation_url(
+            context.bot.username,
+            requester_user_id,
+        )
+        if scope[0] == USER_LANGUAGE_SCOPE
+        else None
+    )
+    return build_change_language_keyboard(
+        *scope,
+        requester_user_id,
+        invite_url=invite_url,
+    )
+
+
 async def handle_change_language_callback(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
@@ -285,8 +306,9 @@ async def handle_back_to_language_settings_callback(
         return
 
     await callback_query.edit_message_reply_markup(
-        reply_markup=build_change_language_keyboard(
-            *scope,
+        reply_markup=_build_root_language_keyboard(
+            context,
+            scope,
             requester_user_id,
         ),
     )
@@ -430,8 +452,9 @@ async def handle_set_language_callback(
         reply_markup=(
             None
             if is_command_response
-            else build_change_language_keyboard(
-                *scope,
+            else _build_root_language_keyboard(
+                context,
+                scope,
                 requester_user_id,
             )
         ),

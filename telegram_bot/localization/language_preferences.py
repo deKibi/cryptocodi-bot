@@ -197,6 +197,31 @@ class LanguagePreferenceStorage:
             )
             connection.commit()
 
+    def initialize_chat_language(
+        self,
+        chat_id: int,
+        language: str,
+    ) -> bool:
+        """Insert an automatic chat language only when one is absent."""
+        _validate_language_preference(language, AUTO_SELECTION_SOURCE)
+
+        with closing(self._connect()) as connection:
+            cursor = connection.execute(
+                """
+                INSERT INTO chat_settings (
+                    chat_id,
+                    language_code,
+                    selection_source
+                )
+                VALUES (?, ?, ?)
+                ON CONFLICT (chat_id) DO NOTHING
+                """,
+                (chat_id, language, AUTO_SELECTION_SOURCE),
+            )
+            connection.commit()
+
+        return cursor.rowcount > 0
+
 
 def _validate_language_preference(
     language: str,
@@ -465,3 +490,38 @@ def save_user_language(user_id: int, language: str) -> bool:
 def save_chat_language(chat_id: int, language: str) -> bool:
     """Persist a manual chat language selection."""
     return _save_scope_language(CHAT_LANGUAGE_SCOPE, chat_id, language)
+
+
+def initialize_chat_language(chat_id: int, language: str) -> bool:
+    """Persist an automatic initial chat language without overwriting it."""
+    if language not in SUPPORTED_LANGUAGES:
+        language = DEFAULT_LANGUAGE
+
+    scope_key = (CHAT_LANGUAGE_SCOPE, chat_id)
+
+    if scope_key in _language_preference_cache:
+        return False
+
+    try:
+        was_initialized = (
+            _get_language_preference_storage().initialize_chat_language(
+                chat_id,
+                language,
+            )
+        )
+    except (OSError, sqlite3.Error):
+        LOGGER.exception(
+            "Failed to initialize chat language; using English | "
+            "chat_id=%s, language=%s",
+            chat_id,
+            language,
+        )
+        return False
+
+    if was_initialized:
+        _remember_language_preference(
+            scope_key,
+            (language, AUTO_SELECTION_SOURCE),
+        )
+
+    return was_initialized

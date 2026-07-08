@@ -368,6 +368,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
     },
     "coin_chart_button": {"en": "📈 {coin_name}"},
     "change_language_button": {"en": "Change Language"},
+    "invite_bot_button": {"en": "Invite bot to your chat"},
     "language_back_button": {"en": "Back"},
     "choose_language": {
         "uk": "Оберіть мову:",

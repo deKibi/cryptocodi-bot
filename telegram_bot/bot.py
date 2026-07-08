@@ -65,14 +65,22 @@ from telegram_bot.keyboards.language_keyboard import (
     build_change_language_keyboard,
 )
 from telegram_bot.localization.language_preferences import (
+    GROUP_CHAT_TYPES,
+    USER_LANGUAGE_SCOPE,
     get_language_scope,
+    initialize_chat_language,
     resolve_context_language,
+    resolve_user_language,
 )
 from telegram_bot.localization.messages import get_message
 from telegram_bot.logging_config import (
     configure_logging,
     format_log_metadata,
     get_update_metadata,
+)
+from telegram_bot.services.bot_invitation import (
+    build_bot_invitation_url,
+    parse_bot_inviter_user_id,
 )
 
 
@@ -139,6 +147,7 @@ async def setup_bot_commands(application: Application) -> None:
 
 async def _send_bot_info(
     update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
     command_name: str,
 ) -> None:
     """Send shared bot information for an informational command."""
@@ -167,8 +176,19 @@ async def _send_bot_info(
         chat.type if chat is not None else None,
         user.id if user is not None else None,
     )
+    invite_url = (
+        build_bot_invitation_url(context.bot.username, user.id)
+        if language_scope is not None
+        and language_scope[0] == USER_LANGUAGE_SCOPE
+        and user is not None
+        else None
+    )
     response_keyboard = (
-        build_change_language_keyboard(*language_scope, user.id)
+        build_change_language_keyboard(
+            *language_scope,
+            user.id,
+            invite_url=invite_url,
+        )
         if language_scope is not None and user is not None
         else None
     )
@@ -181,18 +201,41 @@ async def _send_bot_info(
 
 async def start_command(
     update: Update,
-    _context: ContextTypes.DEFAULT_TYPE,
+    context: ContextTypes.DEFAULT_TYPE,
 ) -> None:
     """Send bot information for the start command."""
-    await _send_bot_info(update, "start")
+    chat = update.effective_chat
+    user = update.effective_user
+    inviter_user_id = parse_bot_inviter_user_id(context.args or ())
+
+    if (
+        chat is not None
+        and chat.type in GROUP_CHAT_TYPES
+        and user is not None
+        and inviter_user_id == user.id
+    ):
+        inviter_language = resolve_user_language(
+            user.id,
+            user.language_code,
+        )
+        if initialize_chat_language(chat.id, inviter_language):
+            LOGGER.info(
+                "Invited group language initialized | "
+                "chat_id=%s, inviter_user_id=%s, language=%s",
+                chat.id,
+                user.id,
+                inviter_language,
+            )
+
+    await _send_bot_info(update, context, "start")
 
 
 async def help_command(
     update: Update,
-    _context: ContextTypes.DEFAULT_TYPE,
+    context: ContextTypes.DEFAULT_TYPE,
 ) -> None:
     """Send bot information for the help command."""
-    await _send_bot_info(update, "help")
+    await _send_bot_info(update, context, "help")
 
 
 async def handle_error(
