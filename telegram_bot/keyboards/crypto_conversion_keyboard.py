@@ -8,6 +8,7 @@ from urllib.parse import quote
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 # Custom Modules
+from crypto_converter.coin_ticker_resolver import FIAT_TICKERS
 from crypto_converter.crypto_price_converter import CryptoPriceConversion
 from telegram_bot.localization.messages import get_message
 
@@ -43,7 +44,7 @@ def build_crypto_conversion_keyboard(
 
     for conversion in conversions:
         if (
-            conversion.ticker == "UAH"
+            conversion.ticker in FIAT_TICKERS
             or conversion.coin_id in added_coin_ids
         ):
             continue

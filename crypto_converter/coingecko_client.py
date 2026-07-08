@@ -33,12 +33,17 @@ COINGECKO_MARKETS_MAX_PAGE_SIZE: Final[int] = 250
 
 @dataclass(frozen=True)
 class CoinGeckoUnitPrice:
-    """Represent the unit price of one coin in USD and UAH."""
+    """Represent one coin's prices in supported fiat currencies."""
 
     coin_id: str
     usd: Decimal
     uah: Decimal
+    eur: Decimal
+    cad: Decimal
     usd_24h_change: Optional[Decimal] = None
+    uah_24h_change: Optional[Decimal] = None
+    eur_24h_change: Optional[Decimal] = None
+    cad_24h_change: Optional[Decimal] = None
 
 
 @dataclass(frozen=True)
@@ -286,7 +291,7 @@ def search_coins(query: str) -> list[CoinGeckoSearchCoin]:
 
 
 def get_coin_unit_price(coin_id: str) -> CoinGeckoUnitPrice:
-    """Fetch the unit price of a CoinGecko coin in USD and UAH."""
+    """Fetch a CoinGecko coin's prices in supported fiat currencies."""
     normalized_coin_id = coin_id.strip().lower()
 
     if not normalized_coin_id:
@@ -296,7 +301,7 @@ def get_coin_unit_price(coin_id: str) -> CoinGeckoUnitPrice:
         url=COINGECKO_SIMPLE_PRICE_URL,
         params={
             "ids": normalized_coin_id,
-            "vs_currencies": "usd,uah",
+            "vs_currencies": "usd,uah,eur,cad",
             "include_24hr_change": "true",
         },
     )
@@ -315,8 +320,22 @@ def get_coin_unit_price(coin_id: str) -> CoinGeckoUnitPrice:
         coin_id=normalized_coin_id,
         usd=_parse_price(coin_data, "usd"),
         uah=_parse_price(coin_data, "uah"),
+        eur=_parse_price(coin_data, "eur"),
+        cad=_parse_price(coin_data, "cad"),
         usd_24h_change=_parse_optional_percentage(
             coin_data,
             "usd_24h_change",
+        ),
+        uah_24h_change=_parse_optional_percentage(
+            coin_data,
+            "uah_24h_change",
+        ),
+        eur_24h_change=_parse_optional_percentage(
+            coin_data,
+            "eur_24h_change",
+        ),
+        cad_24h_change=_parse_optional_percentage(
+            coin_data,
+            "cad_24h_change",
         ),
     )
