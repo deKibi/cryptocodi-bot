@@ -81,3 +81,4 @@ sessions/
 
 # Python application data
 /data/rate_limits.sqlite3*
+/data/user_preferences.sqlite3*

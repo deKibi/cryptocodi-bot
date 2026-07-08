@@ -37,6 +37,10 @@ from crypto_converter.usage_limiter import (
 from telegram_bot.keyboards.crypto_conversion_keyboard import (
     build_crypto_conversion_keyboard,
 )
+from telegram_bot.localization.language_preferences import (
+    DEFAULT_LANGUAGE,
+    resolve_user_language,
+)
 from telegram_bot.localization.messages import get_message
 from telegram_bot.logging_config import (
     format_log_metadata,
@@ -161,21 +165,29 @@ def _format_fiat_amount(value: Decimal) -> str:
     return _format_decimal(value)
 
 
-def _format_24h_change(value: Decimal) -> str:
+def _format_24h_change(
+    value: Decimal,
+    language: str = DEFAULT_LANGUAGE,
+) -> str:
     rounded_value = value.quantize(
         Decimal("0.01"),
         rounding=ROUND_HALF_UP,
     )
     return get_message(
         "crypto_24h_change",
+        language=language,
         change=f"{rounded_value:+.2f}",
     )
 
 
-def _format_coin_label(conversion: CryptoPriceConversion) -> str:
+def _format_coin_label(
+    conversion: CryptoPriceConversion,
+    language: str = DEFAULT_LANGUAGE,
+) -> str:
     coin_name = conversion.coin_name.strip() or conversion.ticker
     return get_message(
         "coin_label",
+        language=language,
         coin_name=html.escape(coin_name),
         ticker=html.escape(conversion.ticker.lower()),
     )
@@ -184,22 +196,28 @@ def _format_coin_label(conversion: CryptoPriceConversion) -> str:
 def _format_crypto_conversion(
     conversion: CryptoPriceConversion,
     show_24h_change: bool,
+    language: str = DEFAULT_LANGUAGE,
 ) -> str:
     amount = _format_decimal(conversion.amount)
     total_usd = _format_fiat_amount(conversion.total_usd)
     total_uah = _format_fiat_amount(conversion.total_uah)
-    coin_label = _format_coin_label(conversion)
+    coin_label = _format_coin_label(conversion, language)
     amount_prefix = "" if conversion.amount == Decimal("1") else f"{amount} "
     change_text = ""
 
     if show_24h_change and conversion.usd_24h_change is not None:
         change_text = get_message(
             "crypto_change_text",
-            change=_format_24h_change(conversion.usd_24h_change),
+            language=language,
+            change=_format_24h_change(
+                conversion.usd_24h_change,
+                language,
+            ),
         )
 
     return get_message(
         "crypto_conversion",
+        language=language,
         amount_prefix=amount_prefix,
         coin_label=coin_label,
         change_text=change_text,
@@ -208,25 +226,31 @@ def _format_crypto_conversion(
     )
 
 
-def format_crypto_response(conversion: CryptoPriceConversion) -> str:
+def format_crypto_response(
+    conversion: CryptoPriceConversion,
+    language: str = DEFAULT_LANGUAGE,
+) -> str:
     """Format a cryptocurrency conversion for a Telegram reply."""
-    return format_crypto_responses([conversion])
+    return format_crypto_responses([conversion], language)
 
 
 def format_crypto_responses(
     conversions: list[CryptoPriceConversion],
+    language: str = DEFAULT_LANGUAGE,
 ) -> str:
     """Format multiple cryptocurrency conversions in one Telegram reply."""
     formatted_conversions = (
         _format_crypto_conversion(
             conversion,
             show_24h_change=conversion.amount == Decimal("1"),
+            language=language,
         )
         for conversion in conversions
     )
 
     return get_message(
         "crypto_responses",
+        language=language,
         conversions="\n\n".join(formatted_conversions),
     )
 
@@ -234,17 +258,19 @@ def format_crypto_responses(
 def format_crypto_calculation_response(
     calculation: CalculatedCryptoExpression,
     conversion: CryptoPriceConversion,
+    language: str = DEFAULT_LANGUAGE,
 ) -> str:
     """Format a calculated crypto amount and its fiat conversion."""
     expression = "".join(calculation.display_expression.split())
     amount = _format_decimal(conversion.amount)
     total_usd = _format_fiat_amount(conversion.total_usd)
     total_uah = _format_fiat_amount(conversion.total_uah)
-    coin_label = _format_coin_label(conversion)
+    coin_label = _format_coin_label(conversion, language)
     amount_prefix = "" if conversion.amount == Decimal("1") else f"{amount} "
 
     return get_message(
         "crypto_calculation_response",
+        language=language,
         expression=html.escape(expression),
         amount=amount,
         amount_prefix=amount_prefix,
@@ -307,9 +333,10 @@ async def _send_or_update_crypto_calculation_error(
     context: ContextTypes.DEFAULT_TYPE,
     chat_id: int,
     metadata_text: str,
+    language: str = DEFAULT_LANGUAGE,
 ) -> None:
     source_message_id = message.message_id
-    error_message = get_message("calculation_error")
+    error_message = get_message("calculation_error", language=language)
     response_signature = (error_message, ())
     related_reply_message_id = get_related_reply_message_id(
         context.bot_data,
@@ -384,6 +411,12 @@ async def handle_crypto_message(
     if chat is None:
         return
 
+    user = update.effective_user
+    language = resolve_user_language(
+        user.id if user is not None else None,
+        user.language_code if user is not None else None,
+    )
+
     if was_reply_deleted(
         context.bot_data,
         CRYPTO_MESSAGE_FEATURE,
@@ -406,6 +439,7 @@ async def handle_crypto_message(
         calculation_signature = (
             "crypto_calculation_error",
             "".join(message_text.split()).lower(),
+            language,
         )
 
         if is_message_signature_unchanged(
@@ -429,6 +463,7 @@ async def handle_crypto_message(
             context,
             chat.id,
             metadata_text,
+            language,
         )
         remember_message_signature(
             context.bot_data,
@@ -472,7 +507,7 @@ async def handle_crypto_message(
             metadata_text,
         )
         await message.reply_text(
-            text=get_message("global_crypto_limit"),
+            text=get_message("global_crypto_limit", language=language),
             do_quote=True,
         )
         LOGGER.info(
@@ -491,7 +526,7 @@ async def handle_crypto_message(
         return
 
     if crypto_calculation is None:
-        crypto_signature = tuple(
+        amount_signature = tuple(
             (
                 resolved_crypto_amount.amount,
                 resolved_crypto_amount.coin.coin_id,
@@ -499,8 +534,10 @@ async def handle_crypto_message(
             )
             for resolved_crypto_amount in resolved_crypto_amounts
         )
+        crypto_signature = (language, amount_signature)
     else:
         crypto_signature = (
+            language,
             (
                 "crypto_calculation",
                 "".join(
@@ -541,7 +578,10 @@ async def handle_crypto_message(
             user_id=user_id,
             chat_id=chat_id,
         ):
-            limit_reached_message = get_message("personal_crypto_limit")
+            limit_reached_message = get_message(
+                "personal_crypto_limit",
+                language=language,
+            )
             limit_scope = "personal"
             LOGGER.warning(
                 "Personal crypto conversion limit reached | %s",
@@ -560,7 +600,10 @@ async def handle_crypto_message(
                 user_id=user_id,
                 chat_id=chat_id,
             )
-            limit_reached_message = get_message("global_crypto_limit")
+            limit_reached_message = get_message(
+                "global_crypto_limit",
+                language=language,
+            )
             limit_scope = "global"
             LOGGER.warning(
                 "Global CoinGecko request limit reached | %s",
@@ -582,7 +625,10 @@ async def handle_crypto_message(
                 user_id=user_id,
                 chat_id=chat_id,
             )
-            limit_reached_message = get_message("personal_crypto_limit")
+            limit_reached_message = get_message(
+                "personal_crypto_limit",
+                language=language,
+            )
             limit_scope = "personal"
             LOGGER.warning(
                 "Personal crypto conversion limit reached while completing "
@@ -629,11 +675,12 @@ async def handle_crypto_message(
         )
 
         if crypto_calculation is None:
-            response_text = format_crypto_responses(conversions)
+            response_text = format_crypto_responses(conversions, language)
         else:
             response_text = format_crypto_calculation_response(
                 crypto_calculation,
                 conversions[0],
+                language,
             )
         response_keyboard = build_crypto_conversion_keyboard(conversions)
         response_signature = (

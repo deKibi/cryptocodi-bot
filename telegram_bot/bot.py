@@ -43,11 +43,23 @@ from telegram_bot.handlers.id_command_handler import (
     handle_id_command,
     handle_shared_id_entity,
 )
+from telegram_bot.handlers.language_callback_handler import (
+    CHANGE_LANGUAGE_CALLBACK_PATTERN,
+    SET_LANGUAGE_CALLBACK_PATTERN,
+    handle_change_language_callback,
+    handle_set_language_callback,
+)
 from telegram_bot.handlers.time_message_handler import handle_time_message
 from telegram_bot.keyboards.crypto_conversion_keyboard import (
     DELETE_CRYPTO_RESPONSE_CALLBACK,
 )
 from telegram_bot.keyboards.id_keyboard import FIND_DIFFERENT_ID_CALLBACK
+from telegram_bot.keyboards.language_keyboard import (
+    build_change_language_keyboard,
+)
+from telegram_bot.localization.language_preferences import (
+    resolve_user_language,
+)
 from telegram_bot.localization.messages import get_message
 from telegram_bot.logging_config import (
     configure_logging,
@@ -133,7 +145,21 @@ async def _send_bot_info(
     if message is None:
         return
 
-    await message.reply_text(get_message("bot_info"), parse_mode="HTML")
+    user = update.effective_user
+    language = resolve_user_language(
+        user.id if user is not None else None,
+        user.language_code if user is not None else None,
+    )
+    response_keyboard = (
+        build_change_language_keyboard(user.id)
+        if user is not None
+        else None
+    )
+    await message.reply_text(
+        get_message("bot_info", language=language),
+        parse_mode="HTML",
+        reply_markup=response_keyboard,
+    )
 
 
 async def start_command(
@@ -187,6 +213,18 @@ def create_application() -> Application:
 
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(
+        CallbackQueryHandler(
+            handle_change_language_callback,
+            pattern=CHANGE_LANGUAGE_CALLBACK_PATTERN,
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            handle_set_language_callback,
+            pattern=SET_LANGUAGE_CALLBACK_PATTERN,
+        )
+    )
     application.add_handler(
         CommandHandler("id", handle_id_command, filters=supported_chats)
     )

@@ -16,6 +16,10 @@ from calculator.expression_parser import (
     ALTERNATIVE_OPERATORS,
     parse_expression,
 )
+from telegram_bot.localization.language_preferences import (
+    DEFAULT_LANGUAGE,
+    resolve_user_language,
+)
 from telegram_bot.localization.messages import get_message
 from telegram_bot.logging_config import (
     format_log_metadata,
@@ -60,6 +64,7 @@ def _format_calculation_result(
 def format_calculation_response(
     expression: str,
     result: int | float,
+    language: str = DEFAULT_LANGUAGE,
 ) -> str:
     """Format a calculation expression and result for a Telegram reply."""
     compact_expression = "".join(expression.split())
@@ -67,6 +72,7 @@ def format_calculation_response(
 
     return get_message(
         "calculation_response",
+        language=language,
         expression=html.escape(compact_expression),
         result=html.escape(formatted_result),
     )
@@ -105,7 +111,12 @@ async def handle_calculator_message(
         )
         return
 
-    expression_signature = "".join(expression.split())
+    user = update.effective_user
+    language = resolve_user_language(
+        user.id if user is not None else None,
+        user.language_code if user is not None else None,
+    )
+    expression_signature = ("".join(expression.split()), language)
 
     if is_message_signature_unchanged(
         context.bot_data,
@@ -128,7 +139,7 @@ async def handle_calculator_message(
     try:
         result = calculate(expression)
     except CalculatorError as error:
-        error_message = get_message("calculation_error")
+        error_message = get_message("calculation_error", language=language)
         LOGGER.warning(
             "Calculation failed: expression=%r, error=%s | %s",
             display_expression,
@@ -180,7 +191,11 @@ async def handle_calculator_message(
         }
     )
 
-    response_text = format_calculation_response(display_expression, result)
+    response_text = format_calculation_response(
+        display_expression,
+        result,
+        language,
+    )
     related_reply_message_id = get_related_reply_message_id(
         context.bot_data,
         CALCULATOR_MESSAGE_FEATURE,
