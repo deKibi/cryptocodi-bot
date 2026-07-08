@@ -28,6 +28,7 @@ MESSAGES: Final[dict[str, str]] = {
             "<code>10:00 UTC</code>",
             "<code>0.3 BNB</code>",
             "<code>25k USDT</code>",
+            "<code>1m BNB</code>",
             "<code>1 bitcoin</code>",
             "<code>100 EUR</code>",
             "<code>100 CAD</code>",
