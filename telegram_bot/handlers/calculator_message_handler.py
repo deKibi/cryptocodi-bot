@@ -18,7 +18,7 @@ from calculator.expression_parser import (
 )
 from telegram_bot.localization.language_preferences import (
     DEFAULT_LANGUAGE,
-    resolve_user_language,
+    resolve_context_language,
 )
 from telegram_bot.localization.messages import get_message
 from telegram_bot.logging_config import (
@@ -112,7 +112,9 @@ async def handle_calculator_message(
         return
 
     user = update.effective_user
-    language = resolve_user_language(
+    language = resolve_context_language(
+        chat.id,
+        chat.type,
         user.id if user is not None else None,
         user.language_code if user is not None else None,
     )

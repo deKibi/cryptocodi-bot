@@ -22,7 +22,7 @@ from telegram_bot.keyboards.id_keyboard import (
 )
 from telegram_bot.localization.language_preferences import (
     DEFAULT_LANGUAGE,
-    resolve_user_language,
+    resolve_context_language,
 )
 from telegram_bot.localization.messages import get_message
 from telegram_bot.logging_config import (
@@ -204,7 +204,12 @@ async def handle_find_different_id_callback(
         return
 
     user = callback_query.from_user
-    language = resolve_user_language(user.id, user.language_code)
+    language = resolve_context_language(
+        response_message.chat_id,
+        response_message.chat.type,
+        user.id,
+        user.language_code,
+    )
     user_mention = get_message(
         "user_mention",
         language=language,
@@ -241,7 +246,10 @@ async def handle_shared_id_entity(
     if message is None:
         return
 
-    language = resolve_user_language(
+    chat = update.effective_chat
+    language = resolve_context_language(
+        chat.id if chat is not None else None,
+        chat.type if chat is not None else None,
         user.id if user is not None else None,
         user.language_code if user is not None else None,
     )
@@ -321,7 +329,9 @@ async def handle_id_command(
     if message is None or chat is None:
         return
 
-    language = resolve_user_language(
+    language = resolve_context_language(
+        chat.id,
+        chat.type,
         user.id if user is not None else None,
         user.language_code if user is not None else None,
     )

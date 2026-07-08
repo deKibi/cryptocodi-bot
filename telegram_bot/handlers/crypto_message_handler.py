@@ -39,7 +39,7 @@ from telegram_bot.keyboards.crypto_conversion_keyboard import (
 )
 from telegram_bot.localization.language_preferences import (
     DEFAULT_LANGUAGE,
-    resolve_user_language,
+    resolve_context_language,
 )
 from telegram_bot.localization.messages import get_message
 from telegram_bot.logging_config import (
@@ -411,12 +411,6 @@ async def handle_crypto_message(
     if chat is None:
         return
 
-    user = update.effective_user
-    language = resolve_user_language(
-        user.id if user is not None else None,
-        user.language_code if user is not None else None,
-    )
-
     if was_reply_deleted(
         context.bot_data,
         CRYPTO_MESSAGE_FEATURE,
@@ -436,6 +430,13 @@ async def handle_crypto_message(
         )
         return
     except CalculatorError as error:
+        user = update.effective_user
+        language = resolve_context_language(
+            chat.id,
+            chat.type,
+            user.id if user is not None else None,
+            user.language_code if user is not None else None,
+        )
         calculation_signature = (
             "crypto_calculation_error",
             "".join(message_text.split()).lower(),
@@ -501,6 +502,13 @@ async def handle_crypto_message(
                 chat.type == ChatType.PRIVATE,
             )
     except CoinGeckoDailyRequestLimitExceeded:
+        user = update.effective_user
+        language = resolve_context_language(
+            chat.id,
+            chat.type,
+            user.id if user is not None else None,
+            user.language_code if user is not None else None,
+        )
         metadata_text = format_log_metadata(get_update_metadata(update))
         LOGGER.warning(
             "Daily CoinGecko request limit reached during coin resolution | %s",
@@ -524,6 +532,14 @@ async def handle_crypto_message(
             message.message_id,
         )
         return
+
+    user = update.effective_user
+    language = resolve_context_language(
+        chat.id,
+        chat.type,
+        user.id if user is not None else None,
+        user.language_code if user is not None else None,
+    )
 
     if crypto_calculation is None:
         amount_signature = tuple(

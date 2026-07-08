@@ -17,7 +17,7 @@ from time_converter.time_utils import (
 from time_converter.utc_time_parser import parse_utc_time_from_text
 from telegram_bot.localization.language_preferences import (
     DEFAULT_LANGUAGE,
-    resolve_user_language,
+    resolve_context_language,
 )
 from telegram_bot.localization.messages import get_message
 from telegram_bot.state.message_reply_tracker import (
@@ -94,7 +94,9 @@ async def handle_time_message(
         return
 
     user = update.effective_user
-    language = resolve_user_language(
+    language = resolve_context_language(
+        chat.id,
+        chat.type,
         user.id if user is not None else None,
         user.language_code if user is not None else None,
     )

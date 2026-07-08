@@ -58,7 +58,8 @@ from telegram_bot.keyboards.language_keyboard import (
     build_change_language_keyboard,
 )
 from telegram_bot.localization.language_preferences import (
-    resolve_user_language,
+    get_language_scope,
+    resolve_context_language,
 )
 from telegram_bot.localization.messages import get_message
 from telegram_bot.logging_config import (
@@ -146,13 +147,21 @@ async def _send_bot_info(
         return
 
     user = update.effective_user
-    language = resolve_user_language(
+    chat = update.effective_chat
+    language = resolve_context_language(
+        chat.id if chat is not None else None,
+        chat.type if chat is not None else None,
         user.id if user is not None else None,
         user.language_code if user is not None else None,
     )
+    language_scope = get_language_scope(
+        chat.id if chat is not None else None,
+        chat.type if chat is not None else None,
+        user.id if user is not None else None,
+    )
     response_keyboard = (
-        build_change_language_keyboard(user.id)
-        if user is not None
+        build_change_language_keyboard(*language_scope)
+        if language_scope is not None
         else None
     )
     await message.reply_text(
