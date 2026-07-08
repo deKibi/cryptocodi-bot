@@ -14,10 +14,12 @@ from telegram.ext import ContextTypes
 
 # Custom Modules
 from telegram_bot.keyboards.language_keyboard import (
+    BACK_TO_LANGUAGE_SETTINGS_CALLBACK_PREFIX,
     BOT_INFO_LANGUAGE_RESPONSE,
     COMMAND_LANGUAGE_RESPONSE,
     CHANGE_LANGUAGE_CALLBACK_PREFIX,
     SET_LANGUAGE_CALLBACK_PREFIX,
+    build_change_language_keyboard,
     build_language_selection_keyboard,
 )
 from telegram_bot.localization.language_preferences import (
@@ -44,6 +46,10 @@ CHANGE_LANGUAGE_CALLBACK_PATTERN: Final[str] = (
     rf"^{CHANGE_LANGUAGE_CALLBACK_PREFIX}:"
     rf"{LANGUAGE_SCOPE_CALLBACK_REGEX}$"
 )
+BACK_TO_LANGUAGE_SETTINGS_CALLBACK_PATTERN: Final[str] = (
+    rf"^{BACK_TO_LANGUAGE_SETTINGS_CALLBACK_PREFIX}:"
+    rf"{LANGUAGE_SCOPE_CALLBACK_REGEX}$"
+)
 SET_LANGUAGE_CALLBACK_PATTERN: Final[str] = (
     rf"^{SET_LANGUAGE_CALLBACK_PREFIX}:(?:en|uk|ru):"
     rf"{LANGUAGE_SCOPE_CALLBACK_REGEX}"
@@ -51,6 +57,10 @@ SET_LANGUAGE_CALLBACK_PATTERN: Final[str] = (
 )
 CHANGE_LANGUAGE_DATA_PATTERN: Final[re.Pattern[str]] = re.compile(
     rf"{CHANGE_LANGUAGE_CALLBACK_PREFIX}:"
+    r"(?P<scope_type>user|chat):(?P<scope_id>-?[1-9][0-9]*)"
+)
+BACK_TO_LANGUAGE_SETTINGS_DATA_PATTERN: Final[re.Pattern[str]] = re.compile(
+    rf"{BACK_TO_LANGUAGE_SETTINGS_CALLBACK_PREFIX}:"
     r"(?P<scope_type>user|chat):(?P<scope_id>-?[1-9][0-9]*)"
 )
 SET_LANGUAGE_DATA_PATTERN: Final[re.Pattern[str]] = re.compile(
@@ -214,6 +224,44 @@ async def handle_change_language_callback(
     )
 
 
+async def handle_back_to_language_settings_callback(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+) -> None:
+    """Close the bot-info selector without changing its language."""
+    callback_query = update.callback_query
+
+    if callback_query is None:
+        return
+
+    await callback_query.answer()
+    scope = _parse_language_scope(
+        callback_query.data,
+        BACK_TO_LANGUAGE_SETTINGS_DATA_PATTERN,
+    )
+
+    if scope is None or not await _can_manage_language_scope(
+        update,
+        context,
+        scope,
+    ):
+        LOGGER.warning(
+            "Language selector close denied | scope=%r, user_id=%s",
+            scope,
+            callback_query.from_user.id,
+        )
+        return
+
+    await callback_query.edit_message_reply_markup(
+        reply_markup=build_change_language_keyboard(*scope),
+    )
+    LOGGER.info(
+        "Language selector closed | scope=%r, user_id=%s",
+        scope,
+        callback_query.from_user.id,
+    )
+
+
 async def handle_language_command(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
@@ -320,20 +368,21 @@ async def handle_set_language_callback(
     if not _save_scope_language(scope, selected_language):
         selected_language = DEFAULT_LANGUAGE
 
+    is_command_response = response_mode == COMMAND_LANGUAGE_RESPONSE
     await callback_query.edit_message_text(
         text=get_message(
             (
                 "language_changed"
-                if response_mode == COMMAND_LANGUAGE_RESPONSE
+                if is_command_response
                 else "bot_info"
             ),
             language=selected_language,
         ),
         parse_mode=ParseMode.HTML,
-        reply_markup=build_language_selection_keyboard(
-            *scope,
-            selected_language,
-            response_mode or BOT_INFO_LANGUAGE_RESPONSE,
+        reply_markup=(
+            None
+            if is_command_response
+            else build_change_language_keyboard(*scope)
         ),
     )
     LOGGER.info(

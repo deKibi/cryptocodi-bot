@@ -363,6 +363,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
     "delete_button": {"en": "Delete"},
     "coin_chart_button": {"en": "📈 {coin_name}"},
     "change_language_button": {"en": "Change Language"},
+    "language_back_button": {"en": "Back"},
     "choose_language": {
         "uk": "Оберіть мову:",
         "en": "Choose language:",

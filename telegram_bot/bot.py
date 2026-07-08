@@ -44,8 +44,10 @@ from telegram_bot.handlers.id_command_handler import (
     handle_shared_id_entity,
 )
 from telegram_bot.handlers.language_callback_handler import (
+    BACK_TO_LANGUAGE_SETTINGS_CALLBACK_PATTERN,
     CHANGE_LANGUAGE_CALLBACK_PATTERN,
     SET_LANGUAGE_CALLBACK_PATTERN,
+    handle_back_to_language_settings_callback,
     handle_change_language_callback,
     handle_language_command,
     handle_set_language_callback,
@@ -235,6 +237,12 @@ def create_application() -> Application:
         CallbackQueryHandler(
             handle_change_language_callback,
             pattern=CHANGE_LANGUAGE_CALLBACK_PATTERN,
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            handle_back_to_language_settings_callback,
+            pattern=BACK_TO_LANGUAGE_SETTINGS_CALLBACK_PATTERN,
         )
     )
     application.add_handler(
