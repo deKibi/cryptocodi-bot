@@ -31,6 +31,10 @@ from config import (
     TELEGRAM_BOT_TOKEN,
     log_configuration_warnings,
 )
+from telegram_bot.handlers.bot_info_callback_handler import (
+    DELETE_BOT_INFO_CALLBACK_PATTERN,
+    handle_delete_bot_info_callback,
+)
 from telegram_bot.handlers.calculator_message_handler import (
     handle_calculator_message,
 )
@@ -43,16 +47,40 @@ from telegram_bot.handlers.id_command_handler import (
     handle_id_command,
     handle_shared_id_entity,
 )
+from telegram_bot.handlers.language_callback_handler import (
+    BACK_TO_LANGUAGE_SETTINGS_CALLBACK_PATTERN,
+    CHANGE_LANGUAGE_CALLBACK_PATTERN,
+    SET_LANGUAGE_CALLBACK_PATTERN,
+    handle_back_to_language_settings_callback,
+    handle_change_language_callback,
+    handle_language_command,
+    handle_set_language_callback,
+)
 from telegram_bot.handlers.time_message_handler import handle_time_message
 from telegram_bot.keyboards.crypto_conversion_keyboard import (
     DELETE_CRYPTO_RESPONSE_CALLBACK,
 )
 from telegram_bot.keyboards.id_keyboard import FIND_DIFFERENT_ID_CALLBACK
+from telegram_bot.keyboards.language_keyboard import (
+    build_change_language_keyboard,
+)
+from telegram_bot.localization.language_preferences import (
+    GROUP_CHAT_TYPES,
+    USER_LANGUAGE_SCOPE,
+    get_language_scope,
+    initialize_chat_language,
+    resolve_context_language,
+    resolve_user_language,
+)
 from telegram_bot.localization.messages import get_message
 from telegram_bot.logging_config import (
     configure_logging,
     format_log_metadata,
     get_update_metadata,
+)
+from telegram_bot.services.bot_invitation import (
+    build_bot_invitation_url,
+    parse_bot_inviter_user_id,
 )
 
 
@@ -63,6 +91,7 @@ BOT_COMMANDS = [
     BotCommand("start", get_message("command_start")),
     BotCommand("help", get_message("command_help")),
     BotCommand("id", get_message("command_id")),
+    BotCommand("language", get_message("command_language")),
 ]
 
 
@@ -118,6 +147,7 @@ async def setup_bot_commands(application: Application) -> None:
 
 async def _send_bot_info(
     update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
     command_name: str,
 ) -> None:
     """Send shared bot information for an informational command."""
@@ -133,23 +163,79 @@ async def _send_bot_info(
     if message is None:
         return
 
-    await message.reply_text(get_message("bot_info"), parse_mode="HTML")
+    user = update.effective_user
+    chat = update.effective_chat
+    language = resolve_context_language(
+        chat.id if chat is not None else None,
+        chat.type if chat is not None else None,
+        user.id if user is not None else None,
+        user.language_code if user is not None else None,
+    )
+    language_scope = get_language_scope(
+        chat.id if chat is not None else None,
+        chat.type if chat is not None else None,
+        user.id if user is not None else None,
+    )
+    invite_url = (
+        build_bot_invitation_url(context.bot.username, user.id)
+        if language_scope is not None
+        and language_scope[0] == USER_LANGUAGE_SCOPE
+        and user is not None
+        else None
+    )
+    response_keyboard = (
+        build_change_language_keyboard(
+            *language_scope,
+            user.id,
+            invite_url=invite_url,
+        )
+        if language_scope is not None and user is not None
+        else None
+    )
+    await message.reply_text(
+        get_message("bot_info", language=language),
+        parse_mode="HTML",
+        reply_markup=response_keyboard,
+    )
 
 
 async def start_command(
     update: Update,
-    _context: ContextTypes.DEFAULT_TYPE,
+    context: ContextTypes.DEFAULT_TYPE,
 ) -> None:
     """Send bot information for the start command."""
-    await _send_bot_info(update, "start")
+    chat = update.effective_chat
+    user = update.effective_user
+    inviter_user_id = parse_bot_inviter_user_id(context.args or ())
+
+    if (
+        chat is not None
+        and chat.type in GROUP_CHAT_TYPES
+        and user is not None
+        and inviter_user_id == user.id
+    ):
+        inviter_language = resolve_user_language(
+            user.id,
+            user.language_code,
+        )
+        if initialize_chat_language(chat.id, inviter_language):
+            LOGGER.info(
+                "Invited group language initialized | "
+                "chat_id=%s, inviter_user_id=%s, language=%s",
+                chat.id,
+                user.id,
+                inviter_language,
+            )
+
+    await _send_bot_info(update, context, "start")
 
 
 async def help_command(
     update: Update,
-    _context: ContextTypes.DEFAULT_TYPE,
+    context: ContextTypes.DEFAULT_TYPE,
 ) -> None:
     """Send bot information for the help command."""
-    await _send_bot_info(update, "help")
+    await _send_bot_info(update, context, "help")
 
 
 async def handle_error(
@@ -187,6 +273,37 @@ def create_application() -> Application:
 
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(
+        CommandHandler(
+            "language",
+            handle_language_command,
+            filters=supported_chats,
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            handle_change_language_callback,
+            pattern=CHANGE_LANGUAGE_CALLBACK_PATTERN,
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            handle_back_to_language_settings_callback,
+            pattern=BACK_TO_LANGUAGE_SETTINGS_CALLBACK_PATTERN,
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            handle_set_language_callback,
+            pattern=SET_LANGUAGE_CALLBACK_PATTERN,
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            handle_delete_bot_info_callback,
+            pattern=DELETE_BOT_INFO_CALLBACK_PATTERN,
+        )
+    )
     application.add_handler(
         CommandHandler("id", handle_id_command, filters=supported_chats)
     )

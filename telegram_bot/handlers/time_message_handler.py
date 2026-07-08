@@ -15,6 +15,10 @@ from time_converter.time_utils import (
     convert_utc_to_kyiv,
 )
 from time_converter.utc_time_parser import parse_utc_time_from_text
+from telegram_bot.localization.language_preferences import (
+    DEFAULT_LANGUAGE,
+    resolve_context_language,
+)
 from telegram_bot.localization.messages import get_message
 from telegram_bot.state.message_reply_tracker import (
     get_related_reply_message_id,
@@ -36,7 +40,10 @@ LOGGER = logging.getLogger(__name__)
 TIME_MESSAGE_FEATURE = "utc_time"
 
 
-def format_time_response(utc_datetime: datetime) -> str:
+def format_time_response(
+    utc_datetime: datetime,
+    language: str = DEFAULT_LANGUAGE,
+) -> str:
     """Format UTC, Kyiv, and Central Europe times for a Telegram reply."""
     kyiv_datetime = convert_utc_to_kyiv(utc_datetime)
     central_europe_datetime = convert_utc_to_central_europe(utc_datetime)
@@ -47,6 +54,7 @@ def format_time_response(utc_datetime: datetime) -> str:
 
     return get_message(
         "time_response",
+        language=language,
         first_line_prefix=first_line_prefix,
         continuation_indent=continuation_indent,
         kyiv_time=f"{kyiv_datetime:%H:%M}",
@@ -85,7 +93,14 @@ async def handle_time_message(
         )
         return
 
-    time_signature = (utc_datetime.hour, utc_datetime.minute)
+    user = update.effective_user
+    language = resolve_context_language(
+        chat.id,
+        chat.type,
+        user.id if user is not None else None,
+        user.language_code if user is not None else None,
+    )
+    time_signature = (utc_datetime.hour, utc_datetime.minute, language)
 
     if is_message_signature_unchanged(
         context.bot_data,
@@ -118,7 +133,7 @@ async def handle_time_message(
         }
     )
 
-    response_text = format_time_response(utc_datetime)
+    response_text = format_time_response(utc_datetime, language)
     related_reply_message_id = get_related_reply_message_id(
         context.bot_data,
         TIME_MESSAGE_FEATURE,

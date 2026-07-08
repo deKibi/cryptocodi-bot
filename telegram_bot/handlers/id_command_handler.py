@@ -20,6 +20,10 @@ from telegram_bot.keyboards.id_keyboard import (
     build_entity_selection_keyboard,
     build_find_different_id_keyboard,
 )
+from telegram_bot.localization.language_preferences import (
+    DEFAULT_LANGUAGE,
+    resolve_context_language,
+)
 from telegram_bot.localization.messages import get_message
 from telegram_bot.logging_config import (
     format_log_metadata,
@@ -78,15 +82,17 @@ def _format_optional_value(
     value: Optional[object],
     prefix: str = "",
     monospace: bool = False,
+    language: str = DEFAULT_LANGUAGE,
 ) -> str:
     if value is None or value == "":
-        return get_message("missing_value")
+        return get_message("missing_value", language=language)
 
     formatted_value = f"{escape(prefix)}{escape(str(value))}"
 
     if monospace:
         return get_message(
             "monospace_value",
+            language=language,
             value=formatted_value,
         )
 
@@ -96,57 +102,79 @@ def _format_optional_value(
 def _format_current_id_response(
     chat: Chat,
     user: User,
+    language: str = DEFAULT_LANGUAGE,
 ) -> str:
-    creation_month = estimate_account_creation_month(user.id)
+    creation_month = estimate_account_creation_month(user.id, language)
 
     return get_message(
         "current_id_response",
-        chat_title=_format_optional_value(chat.title),
-        chat_type=_format_optional_value(chat.type, monospace=True),
+        language=language,
+        chat_title=_format_optional_value(chat.title, language=language),
+        chat_type=_format_optional_value(
+            chat.type,
+            monospace=True,
+            language=language,
+        ),
         chat_username=_format_optional_value(
             chat.username,
             prefix="@",
+            language=language,
         ),
         chat_id=_format_optional_value(
             chat.id,
             monospace=True,
+            language=language,
         ),
-        first_name=_format_optional_value(user.first_name),
-        last_name=_format_optional_value(user.last_name),
+        first_name=_format_optional_value(
+            user.first_name,
+            language=language,
+        ),
+        last_name=_format_optional_value(
+            user.last_name,
+            language=language,
+        ),
         user_username=_format_optional_value(
             user.username,
             prefix="@",
+            language=language,
         ),
         language_code=_format_optional_value(
             user.language_code,
             monospace=True,
+            language=language,
         ),
         user_id=_format_optional_value(
             user.id,
             monospace=True,
+            language=language,
         ),
         creation_month=_format_optional_value(
             creation_month,
             monospace=True,
+            language=language,
         ),
     )
 
 
 def _format_user_id_response(
     user_id: int,
+    language: str = DEFAULT_LANGUAGE,
 ) -> str:
     return get_message(
         "user_id_response",
+        language=language,
         user_id=user_id,
-        creation_month=estimate_account_creation_month(user_id),
+        creation_month=estimate_account_creation_month(user_id, language),
     )
 
 
 def _format_chat_id_response(
     chat_id: int,
+    language: str = DEFAULT_LANGUAGE,
 ) -> str:
     return get_message(
         "chat_id_response",
+        language=language,
         chat_id=chat_id,
     )
 
@@ -176,13 +204,21 @@ async def handle_find_different_id_callback(
         return
 
     user = callback_query.from_user
+    language = resolve_context_language(
+        response_message.chat_id,
+        response_message.chat.type,
+        user.id,
+        user.language_code,
+    )
     user_mention = get_message(
         "user_mention",
+        language=language,
         user_id=user.id,
         name=escape(user.first_name),
     )
     prompt_text = get_message(
         "entity_selection_prompt",
+        language=language,
         user_mention=user_mention,
     )
 
@@ -205,9 +241,18 @@ async def handle_shared_id_entity(
 ) -> None:
     """Reply with the ID of an entity shared through the selector."""
     message = update.effective_message
+    user = update.effective_user
 
     if message is None:
         return
+
+    chat = update.effective_chat
+    language = resolve_context_language(
+        chat.id if chat is not None else None,
+        chat.type if chat is not None else None,
+        user.id if user is not None else None,
+        user.language_code if user is not None else None,
+    )
 
     shared_chat = message.chat_shared
     shared_users = message.users_shared
@@ -223,7 +268,10 @@ async def handle_shared_id_entity(
             )
             return
 
-        response_text = _format_chat_id_response(shared_chat.chat_id)
+        response_text = _format_chat_id_response(
+            shared_chat.chat_id,
+            language,
+        )
         entity_type = (
             "channel"
             if shared_chat.request_id == CHANNEL_REQUEST_ID
@@ -243,7 +291,7 @@ async def handle_shared_id_entity(
             return
 
         entity_id = shared_users.users[0].user_id
-        response_text = _format_user_id_response(entity_id)
+        response_text = _format_user_id_response(entity_id, language)
         entity_type = (
             "bot"
             if shared_users.request_id == BOT_REQUEST_ID
@@ -281,6 +329,13 @@ async def handle_id_command(
     if message is None or chat is None:
         return
 
+    language = resolve_context_language(
+        chat.id,
+        chat.type,
+        user.id if user is not None else None,
+        user.language_code if user is not None else None,
+    )
+
     argument_type, user_id = _parse_user_id_argument(context.args)
     related_reply_message_id = get_related_reply_message_id(
         context.bot_data,
@@ -293,9 +348,10 @@ async def handle_id_command(
         if user is None:
             return
 
-        response_text = _format_current_id_response(chat, user)
+        response_text = _format_current_id_response(chat, user, language)
         response_signature = (
             "current",
+            language,
             chat.title,
             chat.type,
             chat.username,
@@ -310,17 +366,20 @@ async def handle_id_command(
         if related_reply_message_id is not None:
             return
 
-        response_text = get_message("invalid_user_id")
-        response_signature = ("invalid",)
+        response_text = get_message("invalid_user_id", language=language)
+        response_signature = ("invalid", language)
     elif argument_type == "group":
-        response_text = get_message("positive_user_ids_only")
-        response_signature = ("group",)
+        response_text = get_message(
+            "positive_user_ids_only",
+            language=language,
+        )
+        response_signature = ("group", language)
     else:
         if user_id is None:
             return
 
-        response_text = _format_user_id_response(user_id)
-        response_signature = ("user", user_id)
+        response_text = _format_user_id_response(user_id, language)
+        response_signature = ("user", user_id, language)
 
     response_keyboard = None
 
