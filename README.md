@@ -1,50 +1,51 @@
 # cryptocodi bot
 
-Telegram utility-бот для криптоспільноти [@cryptocodi](https://t.me/cryptocodi).
-Працює в особистих повідомленнях і Telegram-групах.
+Telegram utility bot for the [@cryptocodi](https://t.me/cryptocodi)
+crypto community. Works in private messages and Telegram groups.
 
-## Можливості
+## Features
 
-- знаходить UTC-час у тексті та переводить його в Kyiv і CET;
-- знаходить суми криптовалют і базових фіатних валют
-  (USD, EUR, CAD, PLN, UAH) та приблизно переводить їх у USD та UAH;
-- підтримує тікери, повні назви монет, compact amounts із суфіксами
-  `k` (тисячі) та `m` (мільйони), а також декілька crypto-пар в одному
-  повідомленні;
-- показує зміну курсу за 24 години для одиниці криптовалюти або
-  підтримуваної фіатної валюти;
-- додає посилання на графіки CoinGecko та кнопку видалення crypto-відповіді;
-- обчислює прості математичні вирази з `+`, `-`, `*`, `/`, `**` і дужками;
-- обчислює crypto-вирази на кшталт `3*2 BNB` і конвертує результат;
-- розпізнає `×`, латинську `x` і кириличну `х` як множення;
-- команда `/id` показує дані поточного чату й користувача, приймає
-  `/id <user_id>` та підтримує вибір іншої сутності у приватному чаті;
-- підтримує English, українські та російські повідомлення, зберігає окремі
-  мовні налаштування користувачів і груп та дозволяє змінювати мову групи
-  лише її адміністраторам;
-- отримує актуальні курси через CoinGecko Demo API;
-- веде загальні логи та окремі логи знайдених повідомлень;
-- обмежує денну кількість конвертацій і CoinGecko-запитів;
-- оновлює пов'язану відповідь після редагування повідомлення та не відповідає
-  повторно, якщо crypto-значення, UTC-час або математичний вираз не змінилися.
+- detects UTC times in text and converts them to Kyiv and CET;
+- detects cryptocurrency and basic fiat currency amounts
+  (USD, EUR, CAD, PLN, RUB, UAH) and approximately converts them to USD
+  and UAH;
+- supports tickers, full coin names, compact amounts with `k` (thousands)
+  and `m` (millions) suffixes, and multiple crypto pairs in one message;
+- shows 24-hour price changes for one unit of cryptocurrency or a supported
+  fiat currency;
+- adds CoinGecko chart links and a crypto-response delete button;
+- calculates simple mathematical expressions with `+`, `-`, `*`, `/`, `**`
+  and parentheses;
+- calculates crypto expressions such as `3*2 BNB` and converts the result;
+- recognizes `×`, Latin `x`, and Cyrillic `х` as multiplication;
+- the `/id` command shows current chat and user data, accepts
+  `/id <user_id>`, and supports selecting another entity in a private chat;
+- supports English, Ukrainian, and Russian messages, stores separate language
+  preferences for users and groups, and allows only group administrators to
+  change the group language;
+- fetches current rates through the CoinGecko Demo API;
+- writes general logs and separate logs for detected messages;
+- limits the daily number of conversions and CoinGecko requests;
+- updates the related reply after a message is edited and does not reply again
+  if crypto values, UTC time, or a mathematical expression did not change.
 
-## Команди
+## Commands
 
-- `/start` або `/help` — показати інформацію, приклади та змінити мову;
-- `/language` — змінити мову повідомлень бота; у групі команда доступна
-  лише owner та administrators;
-- `/id` — показати ID поточного чату й користувача;
-- `/id <user_id>` — приблизно визначити місяць створення Telegram-акаунта.
+- `/start` or `/help` — show information, examples, and change language;
+- `/language` — change the bot message language; in groups, the command is
+  available only to the owner and administrators;
+- `/id` — show the current chat and user ID;
+- `/id <user_id>` — approximately estimate the Telegram account creation month.
 
-Приклади повідомлень:
+Message examples:
 
 ```text
 10:00 UTC
-Старт події о 10:00utc
+Event starts at 10:00utc
 0.3 BNB
 25k USDT
 1m BNB
-Ціна: 0,34 ETH
+Price: 0,34 ETH
 1 bitcoin
 100 EUR
 100 CAD
@@ -57,9 +58,9 @@ Telegram utility-бот для криптоспільноти [@cryptocodi](http
 /language
 ```
 
-## Локальний запуск
+## Local setup
 
-Потрібен Python 3.10 або новіший.
+Python 3.10 or newer is required.
 
 ```bash
 python3 -m venv .venv
@@ -68,30 +69,30 @@ python -m pip install -r requirements.txt
 cp .env.example .env
 ```
 
-Заповніть `.env` власними значеннями:
+Fill `.env` with your own values:
 
-- `TELEGRAM_BOT_TOKEN` — токен від BotFather;
+- `TELEGRAM_BOT_TOKEN` — token from BotFather;
 - `COINGECKO_API_KEY` — CoinGecko Demo API key;
-- решта змінних керує лімітами та priority user/group.
+- the remaining variables control limits and priority users/groups.
 
-Реальний `.env` не можна додавати в Git.
+The real `.env` must not be committed to Git.
 
-Запуск бота:
+Run the bot:
 
 ```bash
 python main.py
 ```
 
-## Простий запуск на Linux через screen
+## Simple Linux launch with screen
 
-Встановіть системні пакети:
+Install system packages:
 
 ```bash
 sudo apt update
 sudo apt install -y git python3 python3-venv python3-pip screen
 ```
 
-Склонуйте проєкт і підготуйте середовище:
+Clone the project and prepare the environment:
 
 ```bash
 git clone <repository-url>
@@ -103,7 +104,7 @@ cp .env.example .env
 nano .env
 ```
 
-Створіть `screen`-сесію та запустіть бота:
+Create a `screen` session and start the bot:
 
 ```bash
 screen -S cryptocodi-bot
@@ -111,22 +112,22 @@ source .venv/bin/activate
 python main.py
 ```
 
-Щоб залишити бота працювати у фоні, натисніть `Ctrl+A`, потім `D`.
+To leave the bot running in the background, press `Ctrl+A`, then `D`.
 
-Повернутися до сесії:
+Return to the session:
 
 ```bash
 screen -r cryptocodi-bot
 ```
 
-Зупинити бота можна через `Ctrl+C` всередині screen-сесії.
+Stop the bot with `Ctrl+C` inside the screen session.
 
-## Структура
+## Structure
 
-- `time_converter/` — парсинг і конвертація UTC-часу;
-- `crypto_converter/` — парсинг сум, пошук монет і отримання цін;
-- `calculator/` — парсинг і безпечне обчислення математичних виразів;
-- `telegram_bot/` — Telegram handlers, форматування відповідей і логування;
-- `telegram_bot/localization/` — переклади та мовні налаштування користувачів;
-- `telegram_bot/state/` — обмежений in-memory стан оброблених повідомлень;
-- `main.py` — точка запуску бота.
+- `time_converter/` — UTC time parsing and conversion;
+- `crypto_converter/` — amount parsing, coin lookup, and price fetching;
+- `calculator/` — parsing and safe calculation of mathematical expressions;
+- `telegram_bot/` — Telegram handlers, response formatting, and logging;
+- `telegram_bot/localization/` — translations and user language preferences;
+- `telegram_bot/state/` — limited in-memory state for processed messages;
+- `main.py` — bot entry point.
