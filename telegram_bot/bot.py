@@ -111,9 +111,25 @@ def _format_configured_ids(configured_ids: frozenset[int]) -> str:
     return ", ".join(str(identifier) for identifier in sorted(configured_ids))
 
 
-def _format_optional_limit(limit: Optional[int]) -> str:
+def _format_priority_subjects(configured_ids: frozenset[int]) -> str:
+    if not configured_ids:
+        return "not configured (disabled)"
+
+    return _format_configured_ids(configured_ids)
+
+
+def _format_priority_limit(
+    configured_ids: frozenset[int],
+    limit: Optional[int],
+) -> str:
+    if not configured_ids and limit is None:
+        return "not configured (unused)"
+
+    if not configured_ids:
+        return f"{limit} (unused; priority IDs not configured)"
+
     if limit is None:
-        return "not configured"
+        return "not configured (using standard user limit)"
 
     return str(limit)
 
@@ -138,9 +154,9 @@ def log_startup_configuration() -> None:
         "  Maximum crypto pairs per message: %s\n"
         "  Maximum time matches per message: %s\n"
         "  In-message ticker rank limit: %s\n"
-        "  Priority group IDs: %s\n"
+        "  Priority groups: %s\n"
         "  Priority group conversion limit: %s\n"
-        "  Priority user IDs: %s\n"
+        "  Priority users: %s\n"
         "  Priority user conversion limit: %s",
         _format_default_backed_value(
             COINGECKO_REQUESTS_PER_DAY,
@@ -167,10 +183,16 @@ def log_startup_configuration() -> None:
             DEFAULT_CRYPTO_MAX_MARKET_CAP_RANK,
             CRYPTO_MAX_MARKET_CAP_RANK_IS_CONFIGURED,
         ),
-        _format_configured_ids(PRIORITY_GROUPS_ID),
-        _format_optional_limit(PRIORITY_GROUP_CONVERT_LIMIT),
-        _format_configured_ids(PRIORITY_USERS_ID),
-        _format_optional_limit(PRIORITY_USER_CONVERT_LIMIT),
+        _format_priority_subjects(PRIORITY_GROUPS_ID),
+        _format_priority_limit(
+            PRIORITY_GROUPS_ID,
+            PRIORITY_GROUP_CONVERT_LIMIT,
+        ),
+        _format_priority_subjects(PRIORITY_USERS_ID),
+        _format_priority_limit(
+            PRIORITY_USERS_ID,
+            PRIORITY_USER_CONVERT_LIMIT,
+        ),
     )
 
 
