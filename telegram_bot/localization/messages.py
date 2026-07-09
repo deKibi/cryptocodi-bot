@@ -18,7 +18,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
                 "• знаходити UTC-час у повідомленнях і переводити його "
                 "в Kyiv та CET (центральноєвропейський час, Відень)",
                 "• знаходити суми криптовалют і базових фіатних валют "
-                "(USD, EUR, CAD, PLN, UAH) та приблизно переводити їх у "
+                "(USD, EUR, CAD, PLN, RUB, UAH) та приблизно переводити їх у "
                 "USD та UAH",
                 "• показувати зміну курсу за 24 години та відкривати "
                 "графіки монет",
@@ -68,7 +68,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
                 "• find UTC times in messages and convert them to Kyiv and "
                 "CET (Central European Time, Vienna)",
                 "• find cryptocurrency and basic fiat amounts "
-                "(USD, EUR, CAD, PLN, UAH) and approximately convert them "
+                "(USD, EUR, CAD, PLN, RUB, UAH) and approximately convert them "
                 "to USD and UAH",
                 "• show 24-hour price changes and open coin charts",
                 "• calculate simple mathematical and cryptocurrency "
@@ -117,7 +117,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
                 "• находить UTC-время в сообщениях и переводить его в "
                 "Kyiv и CET (центральноевропейское время, Вена)",
                 "• находить суммы криптовалют и базовых фиатных валют "
-                "(USD, EUR, CAD, PLN, UAH) и приблизительно переводить их "
+                "(USD, EUR, CAD, PLN, RUB, UAH) и приблизительно переводить их "
                 "в USD и UAH",
                 "• показывать изменение курса за 24 часа и открывать "
                 "графики монет",
