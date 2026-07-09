@@ -19,12 +19,20 @@ from telegram.ext import (
 # Custom Modules
 from config import (
     COINGECKO_REQUESTS_PER_DAY,
+    COINGECKO_REQUESTS_PER_DAY_IS_CONFIGURED,
     CRYPTO_CONVERSIONS_PER_USER_PER_DAY,
+    CRYPTO_CONVERSIONS_PER_USER_PER_DAY_IS_CONFIGURED,
     CRYPTO_MAX_MARKET_CAP_RANK,
     CRYPTO_MAX_MARKET_CAP_RANK_IS_CONFIGURED,
+    DEFAULT_COINGECKO_REQUESTS_PER_DAY,
+    DEFAULT_CRYPTO_CONVERSIONS_PER_USER_PER_DAY,
     DEFAULT_CRYPTO_MAX_MARKET_CAP_RANK,
+    DEFAULT_MAX_CRYPTO_PAIRS_PER_MESSAGE,
+    DEFAULT_MAX_TIME_MATCHES_PER_MESSAGE,
     MAX_CRYPTO_PAIRS_PER_MESSAGE,
+    MAX_CRYPTO_PAIRS_PER_MESSAGE_IS_CONFIGURED,
     MAX_TIME_MATCHES_PER_MESSAGE,
+    MAX_TIME_MATCHES_PER_MESSAGE_IS_CONFIGURED,
     PRIORITY_GROUP_CONVERT_LIMIT,
     PRIORITY_GROUPS_ID,
     PRIORITY_USER_CONVERT_LIMIT,
@@ -110,31 +118,55 @@ def _format_optional_limit(limit: Optional[int]) -> str:
     return str(limit)
 
 
-def _format_market_cap_rank_limit() -> str:
-    if CRYPTO_MAX_MARKET_CAP_RANK_IS_CONFIGURED:
-        return str(CRYPTO_MAX_MARKET_CAP_RANK)
+def _format_default_backed_value(
+    value: int,
+    default: int,
+    is_configured: bool,
+) -> str:
+    if is_configured:
+        return str(value)
 
-    return f"{DEFAULT_CRYPTO_MAX_MARKET_CAP_RANK} (default)"
+    return f"not configured (using {default} default)"
 
 
 def log_startup_configuration() -> None:
     """Log non-sensitive bot settings before Telegram polling starts."""
     LOGGER.info(
         "Startup configuration:\n"
-        "  CoinGecko requests per UTC day: %d\n"
-        "  Conversions per user per UTC day: %d\n"
-        "  Maximum crypto pairs per message: %d\n"
-        "  Maximum time matches per message: %d\n"
+        "  CoinGecko requests per UTC day: %s\n"
+        "  Conversions per user per UTC day: %s\n"
+        "  Maximum crypto pairs per message: %s\n"
+        "  Maximum time matches per message: %s\n"
         "  In-message ticker rank limit: %s\n"
         "  Priority group IDs: %s\n"
         "  Priority group conversion limit: %s\n"
         "  Priority user IDs: %s\n"
         "  Priority user conversion limit: %s",
-        COINGECKO_REQUESTS_PER_DAY,
-        CRYPTO_CONVERSIONS_PER_USER_PER_DAY,
-        MAX_CRYPTO_PAIRS_PER_MESSAGE,
-        MAX_TIME_MATCHES_PER_MESSAGE,
-        _format_market_cap_rank_limit(),
+        _format_default_backed_value(
+            COINGECKO_REQUESTS_PER_DAY,
+            DEFAULT_COINGECKO_REQUESTS_PER_DAY,
+            COINGECKO_REQUESTS_PER_DAY_IS_CONFIGURED,
+        ),
+        _format_default_backed_value(
+            CRYPTO_CONVERSIONS_PER_USER_PER_DAY,
+            DEFAULT_CRYPTO_CONVERSIONS_PER_USER_PER_DAY,
+            CRYPTO_CONVERSIONS_PER_USER_PER_DAY_IS_CONFIGURED,
+        ),
+        _format_default_backed_value(
+            MAX_CRYPTO_PAIRS_PER_MESSAGE,
+            DEFAULT_MAX_CRYPTO_PAIRS_PER_MESSAGE,
+            MAX_CRYPTO_PAIRS_PER_MESSAGE_IS_CONFIGURED,
+        ),
+        _format_default_backed_value(
+            MAX_TIME_MATCHES_PER_MESSAGE,
+            DEFAULT_MAX_TIME_MATCHES_PER_MESSAGE,
+            MAX_TIME_MATCHES_PER_MESSAGE_IS_CONFIGURED,
+        ),
+        _format_default_backed_value(
+            CRYPTO_MAX_MARKET_CAP_RANK,
+            DEFAULT_CRYPTO_MAX_MARKET_CAP_RANK,
+            CRYPTO_MAX_MARKET_CAP_RANK_IS_CONFIGURED,
+        ),
         _format_configured_ids(PRIORITY_GROUPS_ID),
         _format_optional_limit(PRIORITY_GROUP_CONVERT_LIMIT),
         _format_configured_ids(PRIORITY_USERS_ID),
