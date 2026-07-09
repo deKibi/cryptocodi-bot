@@ -30,6 +30,11 @@ def get_required_env(variable_name: str) -> str:
     return value.strip()
 
 
+def is_env_configured(variable_name: str) -> bool:
+    """Return whether an environment variable is set to a non-empty value."""
+    return bool(os.getenv(variable_name, "").strip())
+
+
 def get_positive_int_env(variable_name: str, default: int) -> int:
     """Read a positive integer environment variable or use its default."""
     value = os.getenv(variable_name)
@@ -149,6 +154,20 @@ def _warn_if_priority_limit_below_standard(
     )
 
 
+def _warn_if_default_env_missing(
+    variable_name: str,
+    default: int,
+) -> None:
+    if is_env_configured(variable_name):
+        return
+
+    LOGGER.warning(
+        "%s is not configured; using %d default.",
+        variable_name,
+        default,
+    )
+
+
 TELEGRAM_BOT_TOKEN: Final[str] = get_required_env(
     variable_name="TELEGRAM_BOT_TOKEN",
 )
@@ -157,24 +176,45 @@ COINGECKO_API_KEY: Final[str] = get_required_env(
     variable_name="COINGECKO_API_KEY",
 )
 
+DEFAULT_CRYPTO_CONVERSIONS_PER_USER_PER_DAY: Final[int] = 10
+CRYPTO_CONVERSIONS_PER_USER_PER_DAY_IS_CONFIGURED: Final[bool] = (
+    is_env_configured("CRYPTO_CONVERSIONS_PER_USER_PER_DAY")
+)
 CRYPTO_CONVERSIONS_PER_USER_PER_DAY: Final[int] = get_positive_int_env(
     variable_name="CRYPTO_CONVERSIONS_PER_USER_PER_DAY",
-    default=10,
+    default=DEFAULT_CRYPTO_CONVERSIONS_PER_USER_PER_DAY,
 )
 
+DEFAULT_COINGECKO_REQUESTS_PER_DAY: Final[int] = 250
+COINGECKO_REQUESTS_PER_DAY_IS_CONFIGURED: Final[bool] = is_env_configured(
+    "COINGECKO_REQUESTS_PER_DAY"
+)
 COINGECKO_REQUESTS_PER_DAY: Final[int] = get_positive_int_env(
     variable_name="COINGECKO_REQUESTS_PER_DAY",
-    default=250,
+    default=DEFAULT_COINGECKO_REQUESTS_PER_DAY,
 )
 
+DEFAULT_MAX_CRYPTO_PAIRS_PER_MESSAGE: Final[int] = 5
+MAX_CRYPTO_PAIRS_PER_MESSAGE_IS_CONFIGURED: Final[bool] = (
+    is_env_configured("MAX_CRYPTO_PAIRS_PER_MESSAGE")
+)
 MAX_CRYPTO_PAIRS_PER_MESSAGE: Final[int] = get_positive_int_env(
     variable_name="MAX_CRYPTO_PAIRS_PER_MESSAGE",
-    default=5,
+    default=DEFAULT_MAX_CRYPTO_PAIRS_PER_MESSAGE,
+)
+
+DEFAULT_MAX_TIME_MATCHES_PER_MESSAGE: Final[int] = 5
+MAX_TIME_MATCHES_PER_MESSAGE_IS_CONFIGURED: Final[bool] = (
+    is_env_configured("MAX_TIME_MATCHES_PER_MESSAGE")
+)
+MAX_TIME_MATCHES_PER_MESSAGE: Final[int] = get_positive_int_env(
+    variable_name="MAX_TIME_MATCHES_PER_MESSAGE",
+    default=DEFAULT_MAX_TIME_MATCHES_PER_MESSAGE,
 )
 
 DEFAULT_CRYPTO_MAX_MARKET_CAP_RANK: Final[int] = 1000
-CRYPTO_MAX_MARKET_CAP_RANK_IS_CONFIGURED: Final[bool] = bool(
-    os.getenv("CRYPTO_MAX_MARKET_CAP_RANK", "").strip()
+CRYPTO_MAX_MARKET_CAP_RANK_IS_CONFIGURED: Final[bool] = (
+    is_env_configured("CRYPTO_MAX_MARKET_CAP_RANK")
 )
 CRYPTO_MAX_MARKET_CAP_RANK: Final[int] = get_positive_int_env(
     variable_name="CRYPTO_MAX_MARKET_CAP_RANK",
@@ -203,7 +243,27 @@ PRIORITY_USER_CONVERT_LIMIT: Final[Optional[int]] = (
 
 
 def log_configuration_warnings() -> None:
-    """Log warnings for invalid optional priority configuration."""
+    """Log warnings for default and invalid optional configuration."""
+    _warn_if_default_env_missing(
+        variable_name="CRYPTO_CONVERSIONS_PER_USER_PER_DAY",
+        default=DEFAULT_CRYPTO_CONVERSIONS_PER_USER_PER_DAY,
+    )
+    _warn_if_default_env_missing(
+        variable_name="COINGECKO_REQUESTS_PER_DAY",
+        default=DEFAULT_COINGECKO_REQUESTS_PER_DAY,
+    )
+    _warn_if_default_env_missing(
+        variable_name="MAX_CRYPTO_PAIRS_PER_MESSAGE",
+        default=DEFAULT_MAX_CRYPTO_PAIRS_PER_MESSAGE,
+    )
+    _warn_if_default_env_missing(
+        variable_name="MAX_TIME_MATCHES_PER_MESSAGE",
+        default=DEFAULT_MAX_TIME_MATCHES_PER_MESSAGE,
+    )
+    _warn_if_default_env_missing(
+        variable_name="CRYPTO_MAX_MARKET_CAP_RANK",
+        default=DEFAULT_CRYPTO_MAX_MARKET_CAP_RANK,
+    )
     _warn_if_priority_config_incomplete(
         priority_name="Group",
         priority_configured=bool(PRIORITY_GROUPS_ID),

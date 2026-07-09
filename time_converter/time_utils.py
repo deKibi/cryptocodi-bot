@@ -1,7 +1,7 @@
 # time_converter/time_utils.py
 
 # Standard Libraries
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Final
 from zoneinfo import ZoneInfo
 
@@ -9,7 +9,14 @@ from zoneinfo import ZoneInfo
 # Timezones
 UTC_TIMEZONE: Final[ZoneInfo] = ZoneInfo("UTC")
 KYIV_TIMEZONE: Final[ZoneInfo] = ZoneInfo("Europe/Kyiv")
-CENTRAL_EUROPE_TIMEZONE: Final[ZoneInfo] = ZoneInfo("Europe/Vienna")
+CET_TIMEZONE: Final[timezone] = timezone(timedelta(hours=1))
+CEST_TIMEZONE: Final[timezone] = timezone(timedelta(hours=2))
+TIMEZONES_BY_LABEL: Final[dict[str, ZoneInfo | timezone]] = {
+    "UTC": UTC_TIMEZONE,
+    "KYIV": KYIV_TIMEZONE,
+    "CET": CET_TIMEZONE,
+    "CEST": CEST_TIMEZONE,
+}
 
 
 def convert_utc_to_kyiv(utc_datetime: datetime) -> datetime:
@@ -17,9 +24,22 @@ def convert_utc_to_kyiv(utc_datetime: datetime) -> datetime:
     return utc_datetime.astimezone(KYIV_TIMEZONE)
 
 
+def convert_utc_to_cet(utc_datetime: datetime) -> datetime:
+    """Convert a timezone-aware UTC datetime to fixed CET."""
+    return utc_datetime.astimezone(CET_TIMEZONE)
+
+
 def convert_utc_to_central_europe(utc_datetime: datetime) -> datetime:
-    """Convert a timezone-aware UTC datetime to the Vienna timezone."""
-    return utc_datetime.astimezone(CENTRAL_EUROPE_TIMEZONE)
+    """Convert a timezone-aware UTC datetime to fixed CET."""
+    return convert_utc_to_cet(utc_datetime)
+
+
+def convert_to_timezone(
+    source_datetime: datetime,
+    timezone_label: str,
+) -> datetime:
+    """Convert a timezone-aware datetime to a supported timezone."""
+    return source_datetime.astimezone(TIMEZONES_BY_LABEL[timezone_label])
 
 
 if __name__ == "__main__":

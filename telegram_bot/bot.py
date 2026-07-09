@@ -19,11 +19,20 @@ from telegram.ext import (
 # Custom Modules
 from config import (
     COINGECKO_REQUESTS_PER_DAY,
+    COINGECKO_REQUESTS_PER_DAY_IS_CONFIGURED,
     CRYPTO_CONVERSIONS_PER_USER_PER_DAY,
+    CRYPTO_CONVERSIONS_PER_USER_PER_DAY_IS_CONFIGURED,
     CRYPTO_MAX_MARKET_CAP_RANK,
     CRYPTO_MAX_MARKET_CAP_RANK_IS_CONFIGURED,
+    DEFAULT_COINGECKO_REQUESTS_PER_DAY,
+    DEFAULT_CRYPTO_CONVERSIONS_PER_USER_PER_DAY,
     DEFAULT_CRYPTO_MAX_MARKET_CAP_RANK,
+    DEFAULT_MAX_CRYPTO_PAIRS_PER_MESSAGE,
+    DEFAULT_MAX_TIME_MATCHES_PER_MESSAGE,
     MAX_CRYPTO_PAIRS_PER_MESSAGE,
+    MAX_CRYPTO_PAIRS_PER_MESSAGE_IS_CONFIGURED,
+    MAX_TIME_MATCHES_PER_MESSAGE,
+    MAX_TIME_MATCHES_PER_MESSAGE_IS_CONFIGURED,
     PRIORITY_GROUP_CONVERT_LIMIT,
     PRIORITY_GROUPS_ID,
     PRIORITY_USER_CONVERT_LIMIT,
@@ -102,40 +111,88 @@ def _format_configured_ids(configured_ids: frozenset[int]) -> str:
     return ", ".join(str(identifier) for identifier in sorted(configured_ids))
 
 
-def _format_optional_limit(limit: Optional[int]) -> str:
+def _format_priority_subjects(configured_ids: frozenset[int]) -> str:
+    if not configured_ids:
+        return "not configured (disabled)"
+
+    return _format_configured_ids(configured_ids)
+
+
+def _format_priority_limit(
+    configured_ids: frozenset[int],
+    limit: Optional[int],
+) -> str:
+    if not configured_ids and limit is None:
+        return "not configured (unused)"
+
+    if not configured_ids:
+        return f"{limit} (unused; priority IDs not configured)"
+
     if limit is None:
-        return "not configured"
+        return "not configured (using standard user limit)"
 
     return str(limit)
 
 
-def _format_market_cap_rank_limit() -> str:
-    if CRYPTO_MAX_MARKET_CAP_RANK_IS_CONFIGURED:
-        return str(CRYPTO_MAX_MARKET_CAP_RANK)
+def _format_default_backed_value(
+    value: int,
+    default: int,
+    is_configured: bool,
+) -> str:
+    if is_configured:
+        return str(value)
 
-    return f"{DEFAULT_CRYPTO_MAX_MARKET_CAP_RANK} (default)"
+    return f"not configured (using {default} default)"
 
 
 def log_startup_configuration() -> None:
     """Log non-sensitive bot settings before Telegram polling starts."""
     LOGGER.info(
         "Startup configuration:\n"
-        "  CoinGecko requests per UTC day: %d\n"
-        "  Conversions per user per UTC day: %d\n"
-        "  Maximum crypto pairs per message: %d\n"
+        "  CoinGecko requests per UTC day: %s\n"
+        "  Conversions per user per UTC day: %s\n"
+        "  Maximum crypto pairs per message: %s\n"
+        "  Maximum time matches per message: %s\n"
         "  In-message ticker rank limit: %s\n"
-        "  Priority group IDs: %s\n"
+        "  Priority groups: %s\n"
         "  Priority group conversion limit: %s\n"
-        "  Priority user IDs: %s\n"
+        "  Priority users: %s\n"
         "  Priority user conversion limit: %s",
-        COINGECKO_REQUESTS_PER_DAY,
-        CRYPTO_CONVERSIONS_PER_USER_PER_DAY,
-        MAX_CRYPTO_PAIRS_PER_MESSAGE,
-        _format_market_cap_rank_limit(),
-        _format_configured_ids(PRIORITY_GROUPS_ID),
-        _format_optional_limit(PRIORITY_GROUP_CONVERT_LIMIT),
-        _format_configured_ids(PRIORITY_USERS_ID),
-        _format_optional_limit(PRIORITY_USER_CONVERT_LIMIT),
+        _format_default_backed_value(
+            COINGECKO_REQUESTS_PER_DAY,
+            DEFAULT_COINGECKO_REQUESTS_PER_DAY,
+            COINGECKO_REQUESTS_PER_DAY_IS_CONFIGURED,
+        ),
+        _format_default_backed_value(
+            CRYPTO_CONVERSIONS_PER_USER_PER_DAY,
+            DEFAULT_CRYPTO_CONVERSIONS_PER_USER_PER_DAY,
+            CRYPTO_CONVERSIONS_PER_USER_PER_DAY_IS_CONFIGURED,
+        ),
+        _format_default_backed_value(
+            MAX_CRYPTO_PAIRS_PER_MESSAGE,
+            DEFAULT_MAX_CRYPTO_PAIRS_PER_MESSAGE,
+            MAX_CRYPTO_PAIRS_PER_MESSAGE_IS_CONFIGURED,
+        ),
+        _format_default_backed_value(
+            MAX_TIME_MATCHES_PER_MESSAGE,
+            DEFAULT_MAX_TIME_MATCHES_PER_MESSAGE,
+            MAX_TIME_MATCHES_PER_MESSAGE_IS_CONFIGURED,
+        ),
+        _format_default_backed_value(
+            CRYPTO_MAX_MARKET_CAP_RANK,
+            DEFAULT_CRYPTO_MAX_MARKET_CAP_RANK,
+            CRYPTO_MAX_MARKET_CAP_RANK_IS_CONFIGURED,
+        ),
+        _format_priority_subjects(PRIORITY_GROUPS_ID),
+        _format_priority_limit(
+            PRIORITY_GROUPS_ID,
+            PRIORITY_GROUP_CONVERT_LIMIT,
+        ),
+        _format_priority_subjects(PRIORITY_USERS_ID),
+        _format_priority_limit(
+            PRIORITY_USERS_ID,
+            PRIORITY_USER_CONVERT_LIMIT,
+        ),
     )
 
 
@@ -334,7 +391,7 @@ def create_application() -> Application:
             supported_chats
             & (filters.TEXT | filters.CAPTION)
             & ~filters.COMMAND,
-            handle_time_message,
+            handle_crypto_message,
         )
     )
     application.add_handler(
@@ -342,7 +399,7 @@ def create_application() -> Application:
             supported_chats
             & (filters.TEXT | filters.CAPTION)
             & ~filters.COMMAND,
-            handle_crypto_message,
+            handle_time_message,
         ),
         group=1,
     )
