@@ -15,8 +15,8 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
                 "Привіт! Це @cryptocodi bot.",
                 "",
                 "<b>Що бот вміє зараз:</b>",
-                "• знаходити UTC-час у повідомленнях і переводити його "
-                "в Kyiv та CET (центральноєвропейський час, Відень)",
+                "• знаходити UTC, CET та KYIV час у повідомленнях і "
+                "переводити його між підтримуваними часовими поясами",
                 "• знаходити суми криптовалют і базових фіатних валют "
                 "(USD, EUR, CAD, PLN, RUB, UAH) та приблизно переводити їх у "
                 "USD та UAH",
@@ -33,6 +33,8 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
                 "<b>Приклади:</b>",
                 "",
                 "<code>10:00 UTC</code>",
+                "<code>10:00 CET</code>",
+                "<code>10:00 KYIV</code>",
                 "<code>0.3 BNB</code>",
                 "<code>25k USDT</code>",
                 "<code>1m BNB</code>",
@@ -65,8 +67,8 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
                 "Hi! This is @cryptocodi bot.",
                 "",
                 "<b>What the bot can do:</b>",
-                "• find UTC times in messages and convert them to Kyiv and "
-                "CET (Central European Time, Vienna)",
+                "• find UTC, CET and KYIV times in messages and convert "
+                "them between supported timezones",
                 "• find cryptocurrency and basic fiat amounts "
                 "(USD, EUR, CAD, PLN, RUB, UAH) and approximately convert them "
                 "to USD and UAH",
@@ -82,6 +84,8 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
                 "<b>Examples:</b>",
                 "",
                 "<code>10:00 UTC</code>",
+                "<code>10:00 CET</code>",
+                "<code>10:00 KYIV</code>",
                 "<code>0.3 BNB</code>",
                 "<code>25k USDT</code>",
                 "<code>1m BNB</code>",
@@ -114,8 +118,8 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
                 "Привет! Это @cryptocodi bot.",
                 "",
                 "<b>Что бот умеет сейчас:</b>",
-                "• находить UTC-время в сообщениях и переводить его в "
-                "Kyiv и CET (центральноевропейское время, Вена)",
+                "• находить UTC, CET и KYIV время в сообщениях и "
+                "переводить его между поддерживаемыми часовыми поясами",
                 "• находить суммы криптовалют и базовых фиатных валют "
                 "(USD, EUR, CAD, PLN, RUB, UAH) и приблизительно переводить их "
                 "в USD и UAH",
@@ -133,6 +137,8 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
                 "<b>Примеры:</b>",
                 "",
                 "<code>10:00 UTC</code>",
+                "<code>10:00 CET</code>",
+                "<code>10:00 KYIV</code>",
                 "<code>0.3 BNB</code>",
                 "<code>25k USDT</code>",
                 "<code>1m BNB</code>",
@@ -226,23 +232,35 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
     },
     "time_response": {
         "uk": (
-            "<code>{first_line_prefix}┬─> {kyiv_time} KYIV\n"
-            "{continuation_indent}├─> {central_europe_time} CET\n"
-            "{continuation_indent}└─> {utc_time} UTC\n\n"
-            "UTC — Всесвітній координований час (UTC+00:00)</code>"
+            "<code>{first_line_prefix}┬─> {first_time} {first_timezone}\n"
+            "{continuation_indent}└─> {second_time} {second_timezone}\n\n"
+            "{source_timezone} — {source_timezone_description}</code>"
         ),
         "en": (
-            "<code>{first_line_prefix}┬─> {kyiv_time} KYIV\n"
-            "{continuation_indent}├─> {central_europe_time} CET\n"
-            "{continuation_indent}└─> {utc_time} UTC\n\n"
-            "UTC — Coordinated Universal Time (UTC+00:00)</code>"
+            "<code>{first_line_prefix}┬─> {first_time} {first_timezone}\n"
+            "{continuation_indent}└─> {second_time} {second_timezone}\n\n"
+            "{source_timezone} — {source_timezone_description}</code>"
         ),
         "ru": (
-            "<code>{first_line_prefix}┬─> {kyiv_time} KYIV\n"
-            "{continuation_indent}├─> {central_europe_time} CET\n"
-            "{continuation_indent}└─> {utc_time} UTC\n\n"
-            "UTC — Всемирное координированное время (UTC+00:00)</code>"
+            "<code>{first_line_prefix}┬─> {first_time} {first_timezone}\n"
+            "{continuation_indent}└─> {second_time} {second_timezone}\n\n"
+            "{source_timezone} — {source_timezone_description}</code>"
         ),
+    },
+    "timezone_description_utc": {
+        "uk": "Всесвітній координований час (UTC+00:00)",
+        "en": "Coordinated Universal Time (UTC+00:00)",
+        "ru": "Всемирное координированное время (UTC+00:00)",
+    },
+    "timezone_description_kyiv": {
+        "uk": "час Києва",
+        "en": "Kyiv time",
+        "ru": "киевское время",
+    },
+    "timezone_description_cet": {
+        "uk": "центральноєвропейський час, Відень",
+        "en": "Central European Time, Vienna",
+        "ru": "центральноевропейское время, Вена",
     },
     "invalid_user_id": {
         "uk": "Вкажіть один додатний цілий ID користувача Telegram.",

@@ -334,7 +334,7 @@ def create_application() -> Application:
             supported_chats
             & (filters.TEXT | filters.CAPTION)
             & ~filters.COMMAND,
-            handle_time_message,
+            handle_crypto_message,
         )
     )
     application.add_handler(
@@ -342,7 +342,7 @@ def create_application() -> Application:
             supported_chats
             & (filters.TEXT | filters.CAPTION)
             & ~filters.COMMAND,
-            handle_crypto_message,
+            handle_time_message,
         ),
         group=1,
     )

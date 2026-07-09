@@ -5,7 +5,8 @@ crypto community. Works in private messages and Telegram groups.
 
 ## Features
 
-- detects UTC times in text and converts them to Kyiv and CET;
+- detects UTC, CET, and KYIV times in text and converts them between
+  supported timezones;
 - detects cryptocurrency and basic fiat currency amounts
   (USD, EUR, CAD, PLN, RUB, UAH) and approximately converts them to USD
   and UAH;
@@ -41,6 +42,8 @@ Message examples:
 
 ```text
 10:00 UTC
+10:00 CET
+10:00 KYIV
 Event starts at 10:00utc
 0.3 BNB
 25k USDT
