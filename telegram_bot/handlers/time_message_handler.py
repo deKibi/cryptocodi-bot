@@ -2,6 +2,7 @@
 
 # Standard Libraries
 import logging
+from datetime import datetime
 
 # Third-party Libraries
 from telegram import Update
@@ -9,11 +10,9 @@ from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
 # Custom Modules
-from time_converter.time_utils import (
-    TIMEZONES_BY_LABEL,
-    convert_to_timezone,
-)
-from time_converter.utc_time_parser import ParsedTime, parse_time_from_text
+from config import MAX_TIME_MATCHES_PER_MESSAGE
+from time_converter.time_utils import convert_to_timezone
+from time_converter.utc_time_parser import ParsedTime, parse_times_from_text
 from telegram_bot.localization.language_preferences import (
     DEFAULT_LANGUAGE,
     resolve_context_language,
@@ -40,47 +39,110 @@ TIME_MESSAGE_FEATURE = "utc_time"
 TIMEZONE_LABELS = ("KYIV", "CET", "UTC")
 
 
-def format_time_response(
+def _format_utc_offset(source_datetime: datetime) -> str:
+    offset = source_datetime.utcoffset()
+
+    if offset is None:
+        return "UTC+00:00"
+
+    total_minutes = int(offset.total_seconds() // 60)
+    sign = "+" if total_minutes >= 0 else "-"
+    absolute_minutes = abs(total_minutes)
+    hours, minutes = divmod(absolute_minutes, 60)
+
+    return f"UTC{sign}{hours:02d}:{minutes:02d}"
+
+
+def _format_time_conversion_block(
     parsed_time: ParsedTime,
-    language: str = DEFAULT_LANGUAGE,
 ) -> str:
-    """Format a source time and the other supported timezones."""
+    """Format one parsed time conversion block."""
     source_datetime = parsed_time.source_datetime
     source_timezone = parsed_time.timezone_label
-    target_timezones = [
-        timezone_label
-        for timezone_label in TIMEZONE_LABELS
-        if timezone_label != source_timezone
-    ]
     first_line_prefix = (
         f"{source_datetime:%H:%M} {source_timezone} "
         f"({source_datetime:%H:%M}) {source_timezone} "
     )
     continuation_indent = " " * len(first_line_prefix)
-    first_target_timezone, second_target_timezone = target_timezones
-    first_target_time = convert_to_timezone(
-        source_datetime,
-        first_target_timezone,
+    lines: list[str] = []
+
+    for index, timezone_label in enumerate(TIMEZONE_LABELS):
+        if index == 0:
+            line_prefix = first_line_prefix
+            branch = "┬─>"
+        elif index == len(TIMEZONE_LABELS) - 1:
+            line_prefix = continuation_indent
+            branch = "└─>"
+        else:
+            line_prefix = continuation_indent
+            branch = "├─>"
+
+        converted_time = convert_to_timezone(source_datetime, timezone_label)
+        lines.append(
+            f"{line_prefix}{branch} {converted_time:%H:%M} {timezone_label}"
+        )
+
+    return "\n".join(lines)
+
+
+def _get_source_timezone_datetimes(
+    parsed_times: list[ParsedTime],
+) -> dict[str, datetime]:
+    source_timezone_datetimes: dict[str, datetime] = {}
+
+    for parsed_time in parsed_times:
+        source_timezone_datetimes.setdefault(
+            parsed_time.timezone_label,
+            parsed_time.source_datetime,
+        )
+
+    return source_timezone_datetimes
+
+
+def _format_timezone_descriptions(
+    parsed_times: list[ParsedTime],
+    language: str,
+) -> str:
+    description_lines: list[str] = []
+
+    for timezone_label, source_datetime in (
+        _get_source_timezone_datetimes(parsed_times).items()
+    ):
+        description_lines.append(
+            get_message(
+                "timezone_description_line",
+                language=language,
+                timezone=timezone_label,
+                description=get_message(
+                    f"timezone_description_{timezone_label.lower()}",
+                    language=language,
+                ),
+                utc_offset=_format_utc_offset(source_datetime),
+            )
+        )
+
+    return "\n".join(description_lines)
+
+
+def format_time_response(
+    parsed_times: list[ParsedTime],
+    language: str = DEFAULT_LANGUAGE,
+) -> str:
+    """Format parsed time conversions for a Telegram reply."""
+    conversion_blocks = "\n\n".join(
+        _format_time_conversion_block(parsed_time)
+        for parsed_time in parsed_times
     )
-    second_target_time = convert_to_timezone(
-        source_datetime,
-        second_target_timezone,
+    timezone_descriptions = _format_timezone_descriptions(
+        parsed_times,
+        language,
     )
 
     return get_message(
         "time_response",
         language=language,
-        first_line_prefix=first_line_prefix,
-        continuation_indent=continuation_indent,
-        first_time=f"{first_target_time:%H:%M}",
-        first_timezone=first_target_timezone,
-        second_time=f"{second_target_time:%H:%M}",
-        second_timezone=second_target_timezone,
-        source_timezone=source_timezone,
-        source_timezone_description=get_message(
-            f"timezone_description_{source_timezone.lower()}",
-            language=language,
-        ),
+        conversion_blocks=conversion_blocks,
+        timezone_descriptions=timezone_descriptions,
     )
 
 
@@ -99,13 +161,16 @@ async def handle_time_message(
     if message_text is None:
         return
 
-    parsed_time = parse_time_from_text(message_text)
+    parsed_times = parse_times_from_text(
+        message_text,
+        limit=MAX_TIME_MATCHES_PER_MESSAGE,
+    )
     chat = update.effective_chat
 
     if chat is None:
         return
 
-    if parsed_time is None:
+    if not parsed_times:
         forget_message_signature(
             context.bot_data,
             TIME_MESSAGE_FEATURE,
@@ -121,12 +186,15 @@ async def handle_time_message(
         user.id if user is not None else None,
         user.language_code if user is not None else None,
     )
-    source_datetime = parsed_time.source_datetime
-    source_timezone = parsed_time.timezone_label
     time_signature = (
-        source_datetime.hour,
-        source_datetime.minute,
-        source_timezone,
+        tuple(
+            (
+                parsed_time.source_datetime.hour,
+                parsed_time.source_datetime.minute,
+                parsed_time.timezone_label,
+            )
+            for parsed_time in parsed_times
+        ),
         language,
     )
 
@@ -141,34 +209,43 @@ async def handle_time_message(
 
     metadata = get_update_metadata(update)
     metadata_text = format_log_metadata(metadata)
-    converted_datetimes = {
-        timezone_label.lower(): convert_to_timezone(
-            source_datetime,
-            timezone_label,
+    parsed_time_logs = []
+
+    for parsed_time in parsed_times:
+        source_datetime = parsed_time.source_datetime
+        converted_datetimes = {
+            timezone_label.lower(): convert_to_timezone(
+                source_datetime,
+                timezone_label,
+            )
+            for timezone_label in TIMEZONE_LABELS
+        }
+        converted_times = {
+            timezone_label: f"{converted_datetime:%H:%M}"
+            for timezone_label, converted_datetime
+            in converted_datetimes.items()
+        }
+        parsed_time_logs.append(
+            {
+                "source_timezone": parsed_time.timezone_label,
+                "parsed_datetime": source_datetime.isoformat(),
+                "converted_times": converted_times,
+            }
         )
-        for timezone_label in TIMEZONES_BY_LABEL
-    }
-    converted_times = {
-        timezone_label: f"{converted_datetime:%H:%M}"
-        for timezone_label, converted_datetime in converted_datetimes.items()
-    }
 
     LOGGER.info(
-        "%s time detected: %s | %s",
-        source_timezone,
-        f"{source_datetime:%H:%M}",
+        "%d time conversion match(es) detected | %s",
+        len(parsed_times),
         metadata_text,
     )
     log_detected_time_conversion(
         {
             "chat_type": metadata["chat_type"],
-            "source_timezone": source_timezone,
-            "parsed_datetime": source_datetime.isoformat(),
-            "converted_times": converted_times,
+            "parsed_times": parsed_time_logs,
         }
     )
 
-    response_text = format_time_response(parsed_time, language)
+    response_text = format_time_response(parsed_times, language)
     related_reply_message_id = get_related_reply_message_id(
         context.bot_data,
         TIME_MESSAGE_FEATURE,
@@ -190,10 +267,8 @@ async def handle_time_message(
             reply_message.message_id,
         )
         LOGGER.info(
-            "Time conversion reply sent: %s KYIV, %s CET, %s UTC | %s",
-            f"{converted_datetimes['kyiv']:%H:%M}",
-            f"{converted_datetimes['cet']:%H:%M}",
-            f"{converted_datetimes['utc']:%H:%M}",
+            "Time conversion reply sent: %d match(es) | %s",
+            len(parsed_times),
             metadata_text,
         )
     else:
@@ -204,10 +279,8 @@ async def handle_time_message(
             parse_mode=ParseMode.HTML,
         )
         LOGGER.info(
-            "Time conversion reply updated: %s KYIV, %s CET, %s UTC | %s",
-            f"{converted_datetimes['kyiv']:%H:%M}",
-            f"{converted_datetimes['cet']:%H:%M}",
-            f"{converted_datetimes['utc']:%H:%M}",
+            "Time conversion reply updated: %d match(es) | %s",
+            len(parsed_times),
             metadata_text,
         )
 

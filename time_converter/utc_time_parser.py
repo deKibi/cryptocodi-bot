@@ -46,12 +46,28 @@ def _parse_time_match(match: re.Match[str]) -> ParsedTime:
 
 def parse_time_from_text(text: str) -> Optional[ParsedTime]:
     """Return the first supported timezone time found in text."""
-    match = TIME_PATTERN.search(text)
+    parsed_times = parse_times_from_text(text, limit=1)
 
-    if match is None:
+    if not parsed_times:
         return None
 
-    return _parse_time_match(match)
+    return parsed_times[0]
+
+
+def parse_times_from_text(text: str, limit: int) -> list[ParsedTime]:
+    """Return supported timezone times found in text in message order."""
+    if limit <= 0:
+        return []
+
+    parsed_times: list[ParsedTime] = []
+
+    for match in TIME_PATTERN.finditer(text):
+        parsed_times.append(_parse_time_match(match))
+
+        if len(parsed_times) == limit:
+            break
+
+    return parsed_times
 
 
 def parse_utc_time_from_text(text: str) -> Optional[datetime]:
@@ -78,12 +94,13 @@ if __name__ == "__main__":
         "10:30 cet",
         "10 KYIV",
         "10:45kyiv",
+        "Старт 10:00 UTC, фініш 12:00 CET",
         "Текст 10:00 Utc текст",
         "Перша подія 10:00 UTC, друга подія 12:30 UTC"
     )
 
     for test_message in test_messages:
-        parsed_datetime = parse_time_from_text(test_message)
+        parsed_datetime = parse_times_from_text(test_message, limit=5)
         print(
             "Message:",
             repr(test_message),

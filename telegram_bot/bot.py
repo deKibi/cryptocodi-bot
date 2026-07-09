@@ -24,6 +24,7 @@ from config import (
     CRYPTO_MAX_MARKET_CAP_RANK_IS_CONFIGURED,
     DEFAULT_CRYPTO_MAX_MARKET_CAP_RANK,
     MAX_CRYPTO_PAIRS_PER_MESSAGE,
+    MAX_TIME_MATCHES_PER_MESSAGE,
     PRIORITY_GROUP_CONVERT_LIMIT,
     PRIORITY_GROUPS_ID,
     PRIORITY_USER_CONVERT_LIMIT,
@@ -123,6 +124,7 @@ def log_startup_configuration() -> None:
         "  CoinGecko requests per UTC day: %d\n"
         "  Conversions per user per UTC day: %d\n"
         "  Maximum crypto pairs per message: %d\n"
+        "  Maximum time matches per message: %d\n"
         "  In-message ticker rank limit: %s\n"
         "  Priority group IDs: %s\n"
         "  Priority group conversion limit: %s\n"
@@ -131,6 +133,7 @@ def log_startup_configuration() -> None:
         COINGECKO_REQUESTS_PER_DAY,
         CRYPTO_CONVERSIONS_PER_USER_PER_DAY,
         MAX_CRYPTO_PAIRS_PER_MESSAGE,
+        MAX_TIME_MATCHES_PER_MESSAGE,
         _format_market_cap_rank_limit(),
         _format_configured_ids(PRIORITY_GROUPS_ID),
         _format_optional_limit(PRIORITY_GROUP_CONVERT_LIMIT),

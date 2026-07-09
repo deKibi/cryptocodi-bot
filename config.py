@@ -172,6 +172,11 @@ MAX_CRYPTO_PAIRS_PER_MESSAGE: Final[int] = get_positive_int_env(
     default=5,
 )
 
+MAX_TIME_MATCHES_PER_MESSAGE: Final[int] = get_positive_int_env(
+    variable_name="MAX_TIME_MATCHES_PER_MESSAGE",
+    default=5,
+)
+
 DEFAULT_CRYPTO_MAX_MARKET_CAP_RANK: Final[int] = 1000
 CRYPTO_MAX_MARKET_CAP_RANK_IS_CONFIGURED: Final[bool] = bool(
     os.getenv("CRYPTO_MAX_MARKET_CAP_RANK", "").strip()

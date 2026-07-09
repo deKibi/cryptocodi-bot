@@ -5,8 +5,8 @@ crypto community. Works in private messages and Telegram groups.
 
 ## Features
 
-- detects UTC, CET, and KYIV times in text and converts them between
-  supported timezones;
+- detects up to the configured limit of UTC, CET, and KYIV times in one
+  message and converts them between supported timezones;
 - detects cryptocurrency and basic fiat currency amounts
   (USD, EUR, CAD, PLN, RUB, UAH) and approximately converts them to USD
   and UAH;
@@ -44,6 +44,7 @@ Message examples:
 10:00 UTC
 10:00 CET
 10:00 KYIV
+start 10:00 UTC, finish 12:00 CET
 Event starts at 10:00utc
 0.3 BNB
 25k USDT
@@ -76,7 +77,10 @@ Fill `.env` with your own values:
 
 - `TELEGRAM_BOT_TOKEN` — token from BotFather;
 - `COINGECKO_API_KEY` — CoinGecko Demo API key;
-- the remaining variables control limits and priority users/groups.
+- `MAX_TIME_MATCHES_PER_MESSAGE` — maximum timezone matches processed from
+  one message, `5` by default;
+- the remaining variables control limits, parser caps, and priority
+  users/groups.
 
 The real `.env` must not be committed to Git.
 
