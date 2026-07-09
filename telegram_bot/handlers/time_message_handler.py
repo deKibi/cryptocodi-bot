@@ -36,7 +36,7 @@ from telegram_bot.logging_config import (
 
 LOGGER = logging.getLogger(__name__)
 TIME_MESSAGE_FEATURE = "utc_time"
-TIMEZONE_LABELS = ("KYIV", "CET", "UTC")
+TIMEZONE_LABELS = ("KYIV", "CEST", "CET", "UTC")
 
 
 def _format_utc_offset(source_datetime: datetime) -> str:

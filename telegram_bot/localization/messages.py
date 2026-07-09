@@ -15,7 +15,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
                 "Привіт! Це @cryptocodi bot.",
                 "",
                 "<b>Що бот вміє зараз:</b>",
-                "• знаходити UTC, CET та KYIV часи в повідомленнях і "
+                "• знаходити UTC, CET, CEST та KYIV часи в повідомленнях і "
                 "переводити їх між підтримуваними часовими поясами",
                 "• знаходити суми криптовалют і базових фіатних валют "
                 "(USD, EUR, CAD, PLN, RUB, UAH) та приблизно переводити їх у "
@@ -34,6 +34,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
                 "",
                 "<code>10:00 UTC</code>",
                 "<code>10:00 CET</code>",
+                "<code>10:00 CEST</code>",
                 "<code>10:00 KYIV</code>",
                 "<code>старт 10:00 UTC, фініш 12:00 CET</code>",
                 "<code>0.3 BNB</code>",
@@ -68,7 +69,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
                 "Hi! This is @cryptocodi bot.",
                 "",
                 "<b>What the bot can do:</b>",
-                "• find UTC, CET and KYIV times in messages and convert "
+                "• find UTC, CET, CEST and KYIV times in messages and convert "
                 "them between supported timezones",
                 "• find cryptocurrency and basic fiat amounts "
                 "(USD, EUR, CAD, PLN, RUB, UAH) and approximately convert them "
@@ -86,6 +87,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
                 "",
                 "<code>10:00 UTC</code>",
                 "<code>10:00 CET</code>",
+                "<code>10:00 CEST</code>",
                 "<code>10:00 KYIV</code>",
                 "<code>start 10:00 UTC, finish 12:00 CET</code>",
                 "<code>0.3 BNB</code>",
@@ -120,7 +122,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
                 "Привет! Это @cryptocodi bot.",
                 "",
                 "<b>Что бот умеет сейчас:</b>",
-                "• находить UTC, CET и KYIV время в сообщениях и "
+                "• находить UTC, CET, CEST и KYIV время в сообщениях и "
                 "переводить его между поддерживаемыми часовыми поясами",
                 "• находить суммы криптовалют и базовых фиатных валют "
                 "(USD, EUR, CAD, PLN, RUB, UAH) и приблизительно переводить их "
@@ -140,6 +142,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
                 "",
                 "<code>10:00 UTC</code>",
                 "<code>10:00 CET</code>",
+                "<code>10:00 CEST</code>",
                 "<code>10:00 KYIV</code>",
                 "<code>старт 10:00 UTC, финиш 12:00 CET</code>",
                 "<code>0.3 BNB</code>",
@@ -261,9 +264,14 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
         "ru": "KYIV • киевское время",
     },
     "timezone_description_cet": {
-        "uk": "CET • центральноєвропейський час, Відень",
-        "en": "CET • Central European Time, Vienna",
-        "ru": "CET • центральноевропейское время, Вена",
+        "uk": "CET • центральноєвропейський час",
+        "en": "CET • Central European Time",
+        "ru": "CET • центральноевропейское время",
+    },
+    "timezone_description_cest": {
+        "uk": "CEST • центральноєвропейський літній час",
+        "en": "CEST • Central European Summer Time",
+        "ru": "CEST • центральноевропейское летнее время",
     },
     "invalid_user_id": {
         "uk": "Вкажіть один додатний цілий ID користувача Telegram.",

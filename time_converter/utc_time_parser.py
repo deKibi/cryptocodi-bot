@@ -13,7 +13,7 @@ from time_converter.time_utils import TIMEZONES_BY_LABEL
 # Time parsing
 TIME_PATTERN: Final[re.Pattern[str]] = re.compile(
     r"(?<![\w:.])(?P<hour>(?:[01]?\d|2[0-3]))"
-    r"(?::(?P<minute>[0-5]\d))? ?(?P<timezone>UTC|CET|KYIV)\b",
+    r"(?::(?P<minute>[0-5]\d))? ?(?P<timezone>UTC|CEST|CET|KYIV)\b",
     flags=re.IGNORECASE,
 )
 
@@ -91,7 +91,9 @@ if __name__ == "__main__":
         "10:00 текст utc",
         "10 UTC",
         "10 CET",
+        "10 CEST",
         "10:30 cet",
+        "10:30 cest",
         "10 KYIV",
         "10:45kyiv",
         "Старт 10:00 UTC, фініш 12:00 CET",
