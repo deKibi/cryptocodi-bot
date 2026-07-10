@@ -11,7 +11,6 @@ from telegram.ext import ContextTypes
 
 # Custom Modules
 from calculator.calculator import CalculatorError, calculate
-from calculator.compact_number_normalizer import COMPACT_NUMBER_MULTIPLIERS
 from calculator.expression_parser import (
     ALTERNATIVE_OPERATORS,
     parse_expression,
@@ -42,19 +41,11 @@ LOGGER = logging.getLogger(__name__)
 CALCULATOR_MESSAGE_FEATURE = "calculator"
 
 
-def _format_calculation_result(
-    expression: str,
-    result: int | float,
-) -> str:
-    if (
-        any(
-            suffix in expression.lower()
-            for suffix in COMPACT_NUMBER_MULTIPLIERS
-        )
-        and isinstance(result, float)
-        and result.is_integer()
-    ):
+def _format_calculation_result(result: int | float) -> str:
+    if isinstance(result, float) and result.is_integer():
         formatted_result = str(int(result))
+    elif isinstance(result, float):
+        formatted_result = f"{result:.4f}".rstrip("0").rstrip(".")
     else:
         formatted_result = str(result)
 
@@ -68,7 +59,7 @@ def format_calculation_response(
 ) -> str:
     """Format a calculation expression and result for a Telegram reply."""
     compact_expression = "".join(expression.split())
-    formatted_result = _format_calculation_result(expression, result)
+    formatted_result = _format_calculation_result(result)
 
     return get_message(
         "calculation_response",
