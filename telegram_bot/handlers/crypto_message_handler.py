@@ -30,6 +30,7 @@ from crypto_converter.crypto_price_converter import (
     CryptoPriceConversion,
     convert_resolved_coin_to_fiat,
 )
+from crypto_converter.coingecko_client import CoinGeckoPriceUnavailableError
 from crypto_converter.usage_limiter import (
     CoinGeckoDailyRequestLimitExceeded,
     crypto_usage_limiter,
@@ -648,6 +649,18 @@ async def handle_crypto_message(
                 metadata_text,
             )
             break
+        except CoinGeckoPriceUnavailableError:
+            crypto_usage_limiter.release_conversion_attempt(
+                user_id=user_id,
+                chat_id=chat_id,
+            )
+            LOGGER.info(
+                "CoinGecko price unavailable for %s (%s) | %s",
+                resolved_crypto_amount.coin.ticker,
+                resolved_crypto_amount.coin.coin_id,
+                metadata_text,
+            )
+            continue
         except Exception:
             crypto_usage_limiter.release_conversion_attempt(
                 user_id=user_id,
