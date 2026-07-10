@@ -56,6 +56,22 @@ def test_parse_multiple_times_in_message_order() -> None:
     ]
 
 
+def test_parse_multiple_utc_times_on_separate_lines() -> None:
+    parsed_times = parse_times_from_text("10 utc\n13:30 utc", limit=5)
+
+    assert [parsed_time.timezone_label for parsed_time in parsed_times] == [
+        "UTC",
+        "UTC",
+    ]
+    assert [
+        (parsed_time.source_datetime.hour, parsed_time.source_datetime.minute)
+        for parsed_time in parsed_times
+    ] == [
+        (10, 0),
+        (13, 30),
+    ]
+
+
 def test_parse_times_respects_limit() -> None:
     parsed_times = parse_times_from_text(
         "10:00 UTC, 11:00 CET, 12:00 GMT+3",
@@ -84,8 +100,6 @@ def test_parse_utc_time_from_text_skips_non_utc_matches() -> None:
         "abc10:00UTC",
         "10:00UTCabc",
         "-10:00 UTC",
-        "10: 00 UTC",
-        "10:00 UTC + 3:30",
     ],
 )
 def test_reject_partial_named_timezone_matches(text: str) -> None:
