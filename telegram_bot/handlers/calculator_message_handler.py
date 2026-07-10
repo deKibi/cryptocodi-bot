@@ -49,6 +49,9 @@ def _format_calculation_result(result: int | float) -> str:
     else:
         formatted_result = str(result)
 
+    if formatted_result == "-0":
+        formatted_result = "0"
+
     return format_large_number(formatted_result)
 
 

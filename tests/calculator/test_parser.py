@@ -1,4 +1,4 @@
-# tests/calculator/test_expression_parser.py
+# tests/calculator/test_parser.py
 
 # Third-party Libraries
 import pytest
