@@ -1,4 +1,4 @@
-# tests/calculator/test_formatter.py
+# tests/calculator/test_result_formatter.py
 
 # Third-party Libraries
 import pytest
