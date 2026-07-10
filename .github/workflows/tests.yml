@@ -24,5 +24,42 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements-dev.txt
 
-      - name: Run tests
-        run: python -m pytest
+      - name: Run calculator tests
+        id: calculator_tests
+        continue-on-error: true
+        run: python -m pytest tests/calculator
+
+      - name: Run time converter tests
+        id: time_converter_tests
+        continue-on-error: true
+        run: python -m pytest tests/time_converter
+
+      - name: Write test summary
+        if: always()
+        run: |
+          calculator_status="passed"
+          time_converter_status="passed"
+
+          if [ "${{ steps.calculator_tests.outcome }}" != "success" ]; then
+            calculator_status="failed"
+          fi
+
+          if [ "${{ steps.time_converter_tests.outcome }}" != "success" ]; then
+            time_converter_status="failed"
+          fi
+
+          echo "## Test summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Test group | Status |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| --- | --- |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| calculator | ${calculator_status} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| time_converter | ${time_converter_status} |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail if any test group failed
+        if: >
+          always() &&
+          (
+            steps.calculator_tests.outcome != 'success' ||
+            steps.time_converter_tests.outcome != 'success'
+          )
+        run: exit 1
