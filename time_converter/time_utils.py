@@ -9,12 +9,12 @@ from zoneinfo import ZoneInfo
 # Timezones
 UTC_TIMEZONE: Final[ZoneInfo] = ZoneInfo("UTC")
 KYIV_TIMEZONE: Final[ZoneInfo] = ZoneInfo("Europe/Kyiv")
-CET_TIMEZONE: Final[timezone] = timezone(timedelta(hours=1))
+CENTRAL_EUROPE_TIMEZONE: Final[ZoneInfo] = ZoneInfo("Europe/Vienna")
 CEST_TIMEZONE: Final[timezone] = timezone(timedelta(hours=2))
 TIMEZONES_BY_LABEL: Final[dict[str, ZoneInfo | timezone]] = {
     "UTC": UTC_TIMEZONE,
     "KYIV": KYIV_TIMEZONE,
-    "CET": CET_TIMEZONE,
+    "CET": CENTRAL_EUROPE_TIMEZONE,
     "CEST": CEST_TIMEZONE,
 }
 
@@ -25,12 +25,12 @@ def convert_utc_to_kyiv(utc_datetime: datetime) -> datetime:
 
 
 def convert_utc_to_cet(utc_datetime: datetime) -> datetime:
-    """Convert a timezone-aware UTC datetime to fixed CET."""
-    return utc_datetime.astimezone(CET_TIMEZONE)
+    """Convert a timezone-aware UTC datetime to Central Europe local time."""
+    return utc_datetime.astimezone(CENTRAL_EUROPE_TIMEZONE)
 
 
 def convert_utc_to_central_europe(utc_datetime: datetime) -> datetime:
-    """Convert a timezone-aware UTC datetime to fixed CET."""
+    """Convert a timezone-aware UTC datetime to Central Europe local time."""
     return convert_utc_to_cet(utc_datetime)
 
 
