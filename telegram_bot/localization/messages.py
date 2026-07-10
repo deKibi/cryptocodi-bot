@@ -240,20 +240,20 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
     },
     "time_response": {
         "uk": (
-            "<code>{conversion_blocks}\n\n"
-            "{timezone_descriptions}</code>"
+            "<code>{conversion_blocks}</code>\n\n"
+            "{timezone_descriptions}"
         ),
         "en": (
-            "<code>{conversion_blocks}\n\n"
-            "{timezone_descriptions}</code>"
+            "<code>{conversion_blocks}</code>\n\n"
+            "{timezone_descriptions}"
         ),
         "ru": (
-            "<code>{conversion_blocks}\n\n"
-            "{timezone_descriptions}</code>"
+            "<code>{conversion_blocks}</code>\n\n"
+            "{timezone_descriptions}"
         ),
     },
     "timezone_description_line": {
-        "en": "{timezone} — {description} ({utc_offset})",
+        "en": "<b>{timezone}</b> — <i>{description}</i> ({utc_offset})",
     },
     "timezone_description_utc": {
         "uk": "UTC",
