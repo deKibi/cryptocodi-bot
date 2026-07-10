@@ -39,6 +39,23 @@ from telegram_bot.state.message_signature_tracker import (
 
 LOGGER = logging.getLogger(__name__)
 CALCULATOR_MESSAGE_FEATURE = "calculator"
+MAX_VISIBLE_DECIMAL_PLACES = 5
+
+
+def _get_visible_fraction(fractional_part: str) -> str:
+    visible_fraction = fractional_part[:MAX_VISIBLE_DECIMAL_PLACES].rstrip("0")
+
+    if visible_fraction:
+        return visible_fraction
+
+    for index, digit in enumerate(
+        fractional_part[MAX_VISIBLE_DECIMAL_PLACES:],
+        start=MAX_VISIBLE_DECIMAL_PLACES,
+    ):
+        if digit != "0":
+            return fractional_part[:index + 1].rstrip("0")
+
+    return ""
 
 
 def _format_calculation_result(result: int | float) -> str:
@@ -49,7 +66,7 @@ def _format_calculation_result(result: int | float) -> str:
             result,
             ".15f",
         ).partition(".")
-        formatted_fraction = fractional_part[:5].rstrip("0")
+        formatted_fraction = _get_visible_fraction(fractional_part)
         formatted_result = integer_part
 
         if formatted_fraction:
