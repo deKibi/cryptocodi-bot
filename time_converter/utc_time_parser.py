@@ -22,7 +22,7 @@ OFFSET_TIME_PATTERN: Final[re.Pattern[str]] = re.compile(
     r":(?P<minute>[0-5]\d) ?"
     r"(?P<timezone>(?:UTC|GMT)\s*(?P<sign>[+-])\s*"
     r"(?P<offset>0?\d|1[0-4]))"
-    r"(?![\w:]|\s*[:.,]| ?[+-]|\s+\d)",
+    r"(?!\w|\s*[:.,]\s*\d| ?[+-]|\s+\d)",
     flags=re.IGNORECASE,
 )
 MIN_UTC_OFFSET_HOURS: Final[int] = -12
