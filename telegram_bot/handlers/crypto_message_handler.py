@@ -175,6 +175,56 @@ async def handle_delete_crypto_response(
     )
 
 
+async def _cleanup_tracked_crypto_response(
+    context: ContextTypes.DEFAULT_TYPE,
+    chat_id: int,
+    source_message_id: int,
+    metadata_text: str,
+) -> None:
+    related_reply_message_id = get_related_reply_message_id(
+        context.bot_data,
+        CRYPTO_MESSAGE_FEATURE,
+        chat_id,
+        source_message_id,
+    )
+
+    if related_reply_message_id is not None:
+        try:
+            await context.bot.delete_message(
+                chat_id=chat_id,
+                message_id=related_reply_message_id,
+            )
+            LOGGER.info(
+                "Stale crypto response deleted | %s",
+                metadata_text,
+            )
+        except TelegramError as error:
+            LOGGER.warning(
+                "Stale crypto response deletion failed: %s | %s",
+                error,
+                metadata_text,
+            )
+
+    forget_related_reply_message_id(
+        context.bot_data,
+        CRYPTO_MESSAGE_FEATURE,
+        chat_id,
+        source_message_id,
+    )
+    forget_message_signature(
+        context.bot_data,
+        CRYPTO_MESSAGE_FEATURE,
+        chat_id,
+        source_message_id,
+    )
+    forget_message_signature(
+        context.bot_data,
+        CRYPTO_RESPONSE_FEATURE,
+        chat_id,
+        source_message_id,
+    )
+
+
 def _format_decimal(value: Decimal) -> str:
     formatted_value = format(value, ".8f").rstrip("0").rstrip(".")
 
@@ -445,11 +495,11 @@ async def handle_crypto_message(
     try:
         crypto_calculation = calculate_crypto_expression(message_text)
     except ZeroCryptoAmountError:
-        forget_message_signature(
-            context.bot_data,
-            CRYPTO_MESSAGE_FEATURE,
+        await _cleanup_tracked_crypto_response(
+            context,
             chat.id,
             message.message_id,
+            format_log_metadata(get_update_metadata(update)),
         )
         return
     except CalculatorError as error:
@@ -537,6 +587,12 @@ async def handle_crypto_message(
             "Daily CoinGecko request limit reached during coin resolution | %s",
             metadata_text,
         )
+        await _cleanup_tracked_crypto_response(
+            context,
+            chat.id,
+            message.message_id,
+            metadata_text,
+        )
         await message.reply_text(
             text=get_message("global_crypto_limit", language=language),
             do_quote=True,
@@ -548,11 +604,11 @@ async def handle_crypto_message(
         return
 
     if not resolved_crypto_amounts:
-        forget_message_signature(
-            context.bot_data,
-            CRYPTO_MESSAGE_FEATURE,
+        await _cleanup_tracked_crypto_response(
+            context,
             chat.id,
             message.message_id,
+            format_log_metadata(get_update_metadata(update)),
         )
         return
 
@@ -807,6 +863,21 @@ async def handle_crypto_message(
                 len(converted_matches),
                 metadata_text,
             )
+    elif limit_reached_message is not None:
+        await _cleanup_tracked_crypto_response(
+            context,
+            chat.id,
+            message.message_id,
+            metadata_text,
+        )
+    else:
+        await _cleanup_tracked_crypto_response(
+            context,
+            chat.id,
+            message.message_id,
+            metadata_text,
+        )
+        return
 
     if limit_reached_message is not None:
         await message.reply_text(
