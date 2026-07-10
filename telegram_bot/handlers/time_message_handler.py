@@ -75,8 +75,11 @@ def _format_time_conversion_block(
     """Format one parsed time conversion block."""
     source_datetime = parsed_time.source_datetime
     source_timezone = parsed_time.timezone_label
+    display_timezone = (
+        parsed_time.display_timezone_label or source_timezone
+    )
     first_line_prefix = (
-        f"{source_datetime:%H:%M} {source_timezone} "
+        f"{source_datetime:%H:%M} {display_timezone} "
         f"({source_datetime:%H:%M}) {source_timezone} "
     )
     continuation_indent = " " * len(first_line_prefix)
@@ -101,18 +104,22 @@ def _format_time_conversion_block(
     return "\n".join(lines)
 
 
-def _get_source_timezone_datetimes(
+def _get_source_timezone_data(
     parsed_times: list[ParsedTime],
-) -> dict[str, datetime]:
-    source_timezone_datetimes: dict[str, datetime] = {}
+) -> dict[str, tuple[str, datetime]]:
+    source_timezone_data: dict[str, tuple[str, datetime]] = {}
 
     for parsed_time in parsed_times:
-        source_timezone_datetimes.setdefault(
+        source_timezone_data.setdefault(
             parsed_time.timezone_label,
-            parsed_time.source_datetime,
+            (
+                parsed_time.display_timezone_label
+                or parsed_time.timezone_label,
+                parsed_time.source_datetime,
+            ),
         )
 
-    return source_timezone_datetimes
+    return source_timezone_data
 
 
 def _format_timezone_descriptions(
@@ -121,14 +128,14 @@ def _format_timezone_descriptions(
 ) -> str:
     description_lines: list[str] = []
 
-    for timezone_label, source_datetime in (
-        _get_source_timezone_datetimes(parsed_times).items()
+    for timezone_label, (display_timezone_label, source_datetime) in (
+        _get_source_timezone_data(parsed_times).items()
     ):
         description_lines.append(
             get_message(
                 "timezone_description_line",
                 language=language,
-                timezone=timezone_label,
+                timezone=display_timezone_label,
                 description=_format_timezone_description(
                     timezone_label,
                     language,
@@ -208,6 +215,10 @@ async def handle_time_message(
                 parsed_time.source_datetime.hour,
                 parsed_time.source_datetime.minute,
                 parsed_time.timezone_label,
+                (
+                    parsed_time.display_timezone_label
+                    or parsed_time.timezone_label
+                ),
             )
             for parsed_time in parsed_times
         ),

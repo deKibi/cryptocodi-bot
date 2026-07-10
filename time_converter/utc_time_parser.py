@@ -34,6 +34,7 @@ class ParsedTime:
 
     source_datetime: datetime
     timezone_label: str
+    display_timezone_label: Optional[str] = None
 
 
 def _parse_named_time_match(match: re.Match[str]) -> Optional[ParsedTime]:
@@ -70,6 +71,10 @@ def _parse_offset_time_match(match: re.Match[str]) -> Optional[ParsedTime]:
     offset_timezone = timezone(timedelta(hours=offset_hours))
     label_sign = "+" if offset_hours >= 0 else "-"
     timezone_label = f"UTC{label_sign}{abs(offset_hours)}"
+    input_timezone_prefix = match.group("timezone")[:3].upper()
+    display_timezone_label = (
+        f"{input_timezone_prefix}{label_sign}{abs(offset_hours)}"
+    )
 
     return ParsedTime(
         source_datetime=datetime.now(tz=offset_timezone).replace(
@@ -79,6 +84,7 @@ def _parse_offset_time_match(match: re.Match[str]) -> Optional[ParsedTime]:
             microsecond=0,
         ),
         timezone_label=timezone_label,
+        display_timezone_label=display_timezone_label,
     )
 
 
