@@ -15,8 +15,9 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
                 "Привіт! Це @cryptocodi bot.",
                 "",
                 "<b>Що бот вміє зараз:</b>",
-                "• знаходити UTC, CET та KYIV часи в повідомленнях і "
-                "переводити їх між підтримуваними часовими поясами",
+                "• знаходити UTC, UTC/GMT-зміщення, CET та KYIV часи в "
+                "повідомленнях і переводити їх між підтримуваними часовими "
+                "поясами",
                 "• знаходити суми криптовалют і базових фіатних валют "
                 "(USD, EUR, CAD, PLN, RUB, UAH) та приблизно переводити їх у "
                 "USD та UAH",
@@ -33,6 +34,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
                 "<b>Приклади:</b>",
                 "",
                 "<code>10:00 UTC</code>",
+                "<code>10:00 GMT+3</code>",
                 "<code>10:00 CET</code>",
                 "<code>10:00 KYIV</code>",
                 "<code>старт 10:00 UTC, фініш 12:00 CET</code>",
@@ -68,8 +70,8 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
                 "Hi! This is @cryptocodi bot.",
                 "",
                 "<b>What the bot can do:</b>",
-                "• find UTC, CET and KYIV times in messages and convert "
-                "them between supported timezones",
+                "• find UTC, GMT offsets, CET and KYIV times in messages "
+                "and convert them between supported timezones",
                 "• find cryptocurrency and basic fiat amounts "
                 "(USD, EUR, CAD, PLN, RUB, UAH) and approximately convert them "
                 "to USD and UAH",
@@ -85,6 +87,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
                 "<b>Examples:</b>",
                 "",
                 "<code>10:00 UTC</code>",
+                "<code>10:00 GMT+3</code>",
                 "<code>10:00 CET</code>",
                 "<code>10:00 KYIV</code>",
                 "<code>start 10:00 UTC, finish 12:00 CET</code>",
@@ -120,8 +123,9 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
                 "Привет! Это @cryptocodi bot.",
                 "",
                 "<b>Что бот умеет сейчас:</b>",
-                "• находить UTC, CET и KYIV время в сообщениях и "
-                "переводить его между поддерживаемыми часовыми поясами",
+                "• находить UTC, UTC/GMT-смещения, CET и KYIV время в "
+                "сообщениях и переводить его между поддерживаемыми часовыми "
+                "поясами",
                 "• находить суммы криптовалют и базовых фиатных валют "
                 "(USD, EUR, CAD, PLN, RUB, UAH) и приблизительно переводить их "
                 "в USD и UAH",
@@ -139,6 +143,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
                 "<b>Примеры:</b>",
                 "",
                 "<code>10:00 UTC</code>",
+                "<code>10:00 GMT+3</code>",
                 "<code>10:00 CET</code>",
                 "<code>10:00 KYIV</code>",
                 "<code>старт 10:00 UTC, финиш 12:00 CET</code>",
