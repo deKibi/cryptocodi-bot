@@ -53,6 +53,22 @@ def _format_utc_offset(source_datetime: datetime) -> str:
     return f"UTC{sign}{hours:02d}:{minutes:02d}"
 
 
+def _format_timezone_description(
+    timezone_label: str,
+    language: str,
+) -> str:
+    if (
+        timezone_label.startswith("UTC+")
+        or timezone_label.startswith("UTC-")
+    ):
+        return timezone_label
+
+    return get_message(
+        f"timezone_description_{timezone_label.lower()}",
+        language=language,
+    )
+
+
 def _format_time_conversion_block(
     parsed_time: ParsedTime,
 ) -> str:
@@ -113,9 +129,9 @@ def _format_timezone_descriptions(
                 "timezone_description_line",
                 language=language,
                 timezone=timezone_label,
-                description=get_message(
-                    f"timezone_description_{timezone_label.lower()}",
-                    language=language,
+                description=_format_timezone_description(
+                    timezone_label,
+                    language,
                 ),
                 utc_offset=_format_utc_offset(source_datetime),
             )

@@ -3,7 +3,7 @@
 # Standard Libraries
 import re
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Final, Optional
 
 # Custom Modules
@@ -11,11 +11,21 @@ from time_converter.time_utils import TIMEZONES_BY_LABEL
 
 
 # Time parsing
-TIME_PATTERN: Final[re.Pattern[str]] = re.compile(
-    r"(?<![\w:.])(?P<hour>(?:[01]?\d|2[0-3]))"
-    r"(?::(?P<minute>[0-5]\d))? ?(?P<timezone>UTC|CEST|CET|KYIV)\b",
+NAMED_TIME_PATTERN: Final[re.Pattern[str]] = re.compile(
+    r"(?<![\w:.\-+])(?P<hour>(?:[01]?\d|2[0-3]))"
+    r"(?::(?P<minute>[0-5]\d))? ?(?P<timezone>UTC|CEST|CET|KYIV)\b"
+    r"(?![+-])",
     flags=re.IGNORECASE,
 )
+OFFSET_TIME_PATTERN: Final[re.Pattern[str]] = re.compile(
+    r"(?<![\w:.\-+])(?P<hour>(?:[01]?\d|2[0-3]))"
+    r"(?::(?P<minute>[0-5]\d))? ?"
+    r"(?P<timezone>(?:UTC|GMT)(?P<sign>[+-])(?P<offset>0?\d|1[0-4]))"
+    r"(?![\w:])",
+    flags=re.IGNORECASE,
+)
+MIN_UTC_OFFSET_HOURS: Final[int] = -12
+MAX_UTC_OFFSET_HOURS: Final[int] = 14
 
 
 @dataclass(frozen=True)
@@ -26,7 +36,7 @@ class ParsedTime:
     timezone_label: str
 
 
-def _parse_time_match(match: re.Match[str]) -> ParsedTime:
+def _parse_named_time_match(match: re.Match[str]) -> Optional[ParsedTime]:
     hour = int(match.group("hour"))
     minute_group = match.group("minute")
     minute = int(minute_group) if minute_group is not None else 0
@@ -35,6 +45,34 @@ def _parse_time_match(match: re.Match[str]) -> ParsedTime:
 
     return ParsedTime(
         source_datetime=datetime.now(tz=timezone).replace(
+            hour=hour,
+            minute=minute,
+            second=0,
+            microsecond=0,
+        ),
+        timezone_label=timezone_label,
+    )
+
+
+def _parse_offset_time_match(match: re.Match[str]) -> Optional[ParsedTime]:
+    hour = int(match.group("hour"))
+    minute_group = match.group("minute")
+    minute = int(minute_group) if minute_group is not None else 0
+    sign = match.group("sign")
+    offset_hours = int(match.group("offset"))
+
+    if sign == "-":
+        offset_hours = -offset_hours
+
+    if not MIN_UTC_OFFSET_HOURS <= offset_hours <= MAX_UTC_OFFSET_HOURS:
+        return None
+
+    offset_timezone = timezone(timedelta(hours=offset_hours))
+    label_sign = "+" if offset_hours >= 0 else "-"
+    timezone_label = f"UTC{label_sign}{abs(offset_hours)}"
+
+    return ParsedTime(
+        source_datetime=datetime.now(tz=offset_timezone).replace(
             hour=hour,
             minute=minute,
             second=0,
@@ -60,9 +98,31 @@ def parse_times_from_text(text: str, limit: int) -> list[ParsedTime]:
         return []
 
     parsed_times: list[ParsedTime] = []
+    matches = sorted(
+        (
+            *(
+                (
+                    named_time_match.start(),
+                    _parse_named_time_match(named_time_match),
+                )
+                for named_time_match in NAMED_TIME_PATTERN.finditer(text)
+            ),
+            *(
+                (
+                    offset_time_match.start(),
+                    _parse_offset_time_match(offset_time_match),
+                )
+                for offset_time_match in OFFSET_TIME_PATTERN.finditer(text)
+            ),
+        ),
+        key=lambda match_data: match_data[0],
+    )
 
-    for match in TIME_PATTERN.finditer(text):
-        parsed_times.append(_parse_time_match(match))
+    for _match_start, parsed_time in matches:
+        if parsed_time is None:
+            continue
+
+        parsed_times.append(parsed_time)
 
         if len(parsed_times) == limit:
             break
@@ -72,9 +132,7 @@ def parse_times_from_text(text: str, limit: int) -> list[ParsedTime]:
 
 def parse_utc_time_from_text(text: str) -> Optional[datetime]:
     """Return the first supported UTC time found in text using today's date."""
-    for match in TIME_PATTERN.finditer(text):
-        parsed_time = _parse_time_match(match)
-
+    for parsed_time in parse_times_from_text(text, limit=len(text)):
         if parsed_time.timezone_label == "UTC":
             return parsed_time.source_datetime
 
@@ -94,6 +152,18 @@ if __name__ == "__main__":
         "10 CEST",
         "10:30 cet",
         "10:30 cest",
+        "10:00 GMT+3",
+        "10:00GMT+3",
+        "10:00 GMT-5",
+        "10:00GMT-5",
+        "01:00 GMT+03",
+        "23:59 GMT+14",
+        "00:00 GMT-12",
+        "10:00 UTC+3",
+        "10:00UTC+3",
+        "10:00 GMT+5:30",
+        "10:00   GMT+3",
+        "10:00 GMT + 3",
         "10 KYIV",
         "10:45kyiv",
         "Старт 10:00 UTC, фініш 12:00 CET",

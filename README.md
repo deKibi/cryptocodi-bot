@@ -5,8 +5,8 @@ crypto community. Works in private messages and Telegram groups.
 
 ## Features
 
-- detects up to the configured limit of UTC, CET, and KYIV times in one
-  message and converts them between supported timezones;
+- detects up to the configured limit of UTC, GMT/UTC offset, CET, and KYIV
+  times in one message and converts them between supported timezones;
 - detects cryptocurrency and basic fiat currency amounts
   (USD, EUR, CAD, PLN, RUB, UAH) and approximately converts them to USD
   and UAH;
@@ -42,6 +42,7 @@ Message examples:
 
 ```text
 10:00 UTC
+10:00 GMT+3
 10:00 CET
 10:00 KYIV
 start 10:00 UTC, finish 12:00 CET
@@ -83,6 +84,19 @@ Fill `.env` with your own values:
   users/groups.
 
 The real `.env` must not be committed to Git.
+
+Install development dependencies and run tests:
+
+```bash
+python -m pip install -r requirements-dev.txt
+pytest
+```
+
+Run time conversion coverage:
+
+```bash
+pytest --cov=time_converter --cov=telegram_bot.handlers.time_message_handler
+```
 
 Run the bot:
 
