@@ -266,9 +266,9 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
         "ru": "CET",
     },
     "timezone_description_cest": {
-        "uk": "CET",
-        "en": "CET",
-        "ru": "CET",
+        "uk": "Europe/Monaco • Monaco Time",
+        "en": "Europe/Monaco • Monaco Time",
+        "ru": "Europe/Monaco • Monaco Time",
     },
     "invalid_user_id": {
         "uk": "Вкажіть один додатний цілий ID користувача Telegram.",
