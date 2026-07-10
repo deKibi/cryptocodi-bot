@@ -56,6 +56,8 @@ def test_parse_valid_timezone_offsets(
         "10:00 GMT+5:30",
         "10:00 GMT+5 :30",
         "10:00 GMT+5 : 30",
+        "10:00 GMT+5.5",
+        "10:00 GMT+5,5",
         "10:00GMT+5:45",
         "10:00 GMT++3",
         "abc10:00GMT+3",
@@ -67,8 +69,13 @@ def test_parse_valid_timezone_offsets(
         "10:00 UTC 3",
         "10:00 UTC+3:30",
         "10:00 UTC+3 :30",
+        "10:00 UTC+3.5",
+        "10:00 UTC+3,5",
         "10:00 UTC + 3:30",
         "10:00 UTC + 3 :30",
+        "10:00 UTC + 3.5",
+        "10:00 UTC + 3 .5",
+        "10:00 UTC-3.5",
         "10:00 +3",
         "10:00+3",
         "-1:00 GMT+3",
@@ -87,10 +94,17 @@ def test_fractional_offset_is_not_partially_parsed() -> None:
     assert parse_time_from_text("10:00 GMT+5:30") is None
     assert parse_time_from_text("10:00 GMT+5 :30") is None
     assert parse_time_from_text("10:00 GMT+5 : 30") is None
+    assert parse_time_from_text("10:00 GMT+5.5") is None
+    assert parse_time_from_text("10:00 GMT+5,5") is None
     assert parse_time_from_text("10:00 UTC+3:30") is None
     assert parse_time_from_text("10:00 UTC+3 :30") is None
+    assert parse_time_from_text("10:00 UTC+3.5") is None
+    assert parse_time_from_text("10:00 UTC+3,5") is None
     assert parse_time_from_text("10:00 UTC + 3:30") is None
     assert parse_time_from_text("10:00 UTC + 3 :30") is None
+    assert parse_time_from_text("10:00 UTC + 3.5") is None
+    assert parse_time_from_text("10:00 UTC + 3 .5") is None
+    assert parse_time_from_text("10:00 UTC-3.5") is None
 
 
 def test_spaced_utc_offset_is_not_parsed_as_plain_utc() -> None:
