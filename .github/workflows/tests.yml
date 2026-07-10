@@ -7,8 +7,25 @@ on:
       - main
 
 jobs:
-  test:
+  pytest:
+    name: ${{ matrix.component }}
     runs-on: ubuntu-24.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - component: calculator
+            test_path: tests/calculator
+
+          - component: time-converter
+            test_path: tests/time_converter
+
+          - component: crypto-converter
+            test_path: tests/crypto_converter
+
+          - component: crypto-calculator
+            test_path: tests/crypto_calculator
 
     steps:
       - uses: actions/checkout@v4
@@ -16,50 +33,15 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: "pip"
-          cache-dependency-path: requirements-dev.txt
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements-dev.txt
 
-      - name: Run calculator tests
-        id: calculator_tests
-        continue-on-error: true
-        run: python -m pytest tests/calculator
-
-      - name: Run time converter tests
-        id: time_converter_tests
-        continue-on-error: true
-        run: python -m pytest tests/time_converter
-
-      - name: Write test summary
-        if: always()
-        run: |
-          calculator_status="passed"
-          time_converter_status="passed"
-
-          if [ "${{ steps.calculator_tests.outcome }}" != "success" ]; then
-            calculator_status="failed"
-          fi
-
-          if [ "${{ steps.time_converter_tests.outcome }}" != "success" ]; then
-            time_converter_status="failed"
-          fi
-
-          echo "## Test summary" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Test group | Status |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| --- | --- |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| calculator | ${calculator_status} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| time_converter | ${time_converter_status} |" >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Fail if any test group failed
-        if: >
-          always() &&
-          (
-            steps.calculator_tests.outcome != 'success' ||
-            steps.time_converter_tests.outcome != 'success'
-          )
-        run: exit 1
+      - name: Run ${{ matrix.component }} tests
+        run: python -m pytest "${{ matrix.test_path }}"

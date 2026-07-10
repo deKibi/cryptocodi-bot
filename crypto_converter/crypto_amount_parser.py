@@ -38,6 +38,9 @@ TIMEZONE_OFFSET_PREFIX_PATTERN: Final[re.Pattern[str]] = re.compile(
     r"(?:UTC|GMT)\s*[+-]\s*$",
     flags=re.IGNORECASE,
 )
+TIMEZONE_OFFSET_SUFFIX_PATTERN: Final[re.Pattern[str]] = re.compile(
+    r"[+-]\d",
+)
 
 
 @dataclass(frozen=True)
@@ -89,6 +92,9 @@ def _find_crypto_amount_matches(text: str) -> list[re.Match[str]]:
         if _follows_timezone_offset_prefix(text, match.start()):
             continue
 
+        if _is_timezone_offset_match(text, match):
+            continue
+
         preceding_index = match.start() - 1
 
         while preceding_index >= 0 and text[preceding_index].isspace():
@@ -131,6 +137,13 @@ def _follows_separated_digit(text: str, start: int) -> bool:
 
 def _follows_timezone_offset_prefix(text: str, start: int) -> bool:
     return TIMEZONE_OFFSET_PREFIX_PATTERN.search(text[:start]) is not None
+
+
+def _is_timezone_offset_match(text: str, match: re.Match[str]) -> bool:
+    return (
+        match.group("ticker").upper() in {"UTC", "GMT"}
+        and TIMEZONE_OFFSET_SUFFIX_PATTERN.match(text, match.end()) is not None
+    )
 
 
 def _parse_amount_value(match: re.Match[str]) -> Decimal:
