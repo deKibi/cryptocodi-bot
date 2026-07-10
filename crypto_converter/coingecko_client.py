@@ -64,12 +64,21 @@ class CoinGeckoAPIError(RuntimeError):
     """Indicate that CoinGecko prices could not be retrieved or parsed."""
 
 
+class CoinGeckoPriceUnavailableError(CoinGeckoAPIError):
+    """Indicate that CoinGecko has no current price for a coin."""
+
+
 def _parse_price(coin_data: dict[str, object], currency: str) -> Decimal:
     value = coin_data.get(currency)
 
-    if value is None or isinstance(value, bool):
+    if value is None:
+        raise CoinGeckoPriceUnavailableError(
+            f"CoinGecko response does not contain a {currency} price"
+        )
+
+    if isinstance(value, bool):
         raise CoinGeckoAPIError(
-            f"CoinGecko response does not contain a valid {currency} price"
+            f"CoinGecko returned an invalid {currency} price"
         )
 
     try:
@@ -316,7 +325,7 @@ def get_coin_unit_price(coin_id: str) -> CoinGeckoUnitPrice:
     coin_data = response_data.get(normalized_coin_id)
 
     if not isinstance(coin_data, dict):
-        raise CoinGeckoAPIError(
+        raise CoinGeckoPriceUnavailableError(
             f"CoinGecko response does not contain {normalized_coin_id} prices"
         )
 
