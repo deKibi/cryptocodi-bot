@@ -215,6 +215,10 @@ async def handle_time_message(
                 parsed_time.source_datetime.hour,
                 parsed_time.source_datetime.minute,
                 parsed_time.timezone_label,
+                (
+                    parsed_time.display_timezone_label
+                    or parsed_time.timezone_label
+                ),
             )
             for parsed_time in parsed_times
         ),
