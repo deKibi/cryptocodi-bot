@@ -22,7 +22,7 @@ OFFSET_TIME_PATTERN: Final[re.Pattern[str]] = re.compile(
     r":(?P<minute>[0-5]\d) ?"
     r"(?P<timezone>(?:UTC|GMT)\s*(?P<sign>[+-])\s*"
     r"(?P<offset>0?\d|1[0-4]))"
-    r"(?![\w:]| ?[+-]|\s+\d)",
+    r"(?![\w:]|\s*:| ?[+-]|\s+\d)",
     flags=re.IGNORECASE,
 )
 MIN_UTC_OFFSET_HOURS: Final[int] = -12
@@ -37,17 +37,21 @@ class ParsedTime:
     timezone_label: str
 
 
-def _follows_colon_separator(match: re.Match[str]) -> bool:
+def _follows_malformed_colon_time_separator(match: re.Match[str]) -> bool:
     preceding_index = match.start() - 1
 
     while preceding_index >= 0 and match.string[preceding_index].isspace():
         preceding_index -= 1
 
-    return preceding_index >= 0 and match.string[preceding_index] == ":"
+    return (
+        preceding_index > 0
+        and match.string[preceding_index] == ":"
+        and match.string[preceding_index - 1].isdigit()
+    )
 
 
 def _parse_named_time_match(match: re.Match[str]) -> Optional[ParsedTime]:
-    if _follows_colon_separator(match):
+    if _follows_malformed_colon_time_separator(match):
         return None
 
     hour = int(match.group("hour"))

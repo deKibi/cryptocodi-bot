@@ -20,6 +20,10 @@ from time_converter.utc_time_parser import (
         ("10:30 cet", "CET", 10, 30),
         ("10 CEST", "CEST", 10, 0),
         ("10:45kyiv", "KYIV", 10, 45),
+        ("time: 10:00 UTC", "UTC", 10, 0),
+        ("Старт: 10:00 UTC", "UTC", 10, 0),
+        ("time: 10:30 CET", "CET", 10, 30),
+        ("Старт: 10:45 KYIV", "KYIV", 10, 45),
     ],
 )
 def test_parse_named_timezones(
