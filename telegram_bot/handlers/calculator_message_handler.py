@@ -45,7 +45,15 @@ def _format_calculation_result(result: int | float) -> str:
     if isinstance(result, float) and result.is_integer():
         formatted_result = str(int(result))
     elif isinstance(result, float):
-        formatted_result = f"{result:.4f}".rstrip("0").rstrip(".")
+        integer_part, _separator, fractional_part = format(
+            result,
+            ".15f",
+        ).partition(".")
+        formatted_fraction = fractional_part[:5].rstrip("0")
+        formatted_result = integer_part
+
+        if formatted_fraction:
+            formatted_result = f"{formatted_result}.{formatted_fraction}"
     else:
         formatted_result = str(result)
 
