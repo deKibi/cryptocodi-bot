@@ -22,8 +22,14 @@ OFFSET_TIME_PATTERN: Final[re.Pattern[str]] = re.compile(
     r":(?P<minute>[0-5]\d) ?"
     r"(?P<timezone>(?:UTC|GMT)\s*(?P<sign>[+-])\s*"
     r"(?P<offset>0?\d|1[0-4]))"
-    r"(?!\w|\s*[:.,]\s*\d| ?[+-]|\s+\d)",
+    r"(?!\w| ?[+-]|\s+\d)",
     flags=re.IGNORECASE,
+)
+FRACTIONAL_COLON_OFFSET_SUFFIX_PATTERN: Final[re.Pattern[str]] = re.compile(
+    r"[ \t]*:[ \t]*\d",
+)
+FRACTIONAL_DECIMAL_OFFSET_SUFFIX_PATTERN: Final[re.Pattern[str]] = re.compile(
+    r"[ \t]*[.,]\d",
 )
 MIN_UTC_OFFSET_HOURS: Final[int] = -12
 MAX_UTC_OFFSET_HOURS: Final[int] = 14
@@ -50,6 +56,23 @@ def _follows_malformed_colon_time_separator(match: re.Match[str]) -> bool:
     )
 
 
+def _has_unsupported_fractional_offset_suffix(match: re.Match[str]) -> bool:
+    suffix_start = match.end()
+
+    return (
+        FRACTIONAL_COLON_OFFSET_SUFFIX_PATTERN.match(
+            match.string,
+            suffix_start,
+        )
+        is not None
+        or FRACTIONAL_DECIMAL_OFFSET_SUFFIX_PATTERN.match(
+            match.string,
+            suffix_start,
+        )
+        is not None
+    )
+
+
 def _parse_named_time_match(match: re.Match[str]) -> Optional[ParsedTime]:
     if _follows_malformed_colon_time_separator(match):
         return None
@@ -72,6 +95,9 @@ def _parse_named_time_match(match: re.Match[str]) -> Optional[ParsedTime]:
 
 
 def _parse_offset_time_match(match: re.Match[str]) -> Optional[ParsedTime]:
+    if _has_unsupported_fractional_offset_suffix(match):
+        return None
+
     hour = int(match.group("hour"))
     minute = int(match.group("minute"))
     sign = match.group("sign")

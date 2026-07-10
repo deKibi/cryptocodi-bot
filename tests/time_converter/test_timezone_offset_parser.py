@@ -4,7 +4,7 @@
 import pytest
 
 # Custom Modules
-from time_converter.utc_time_parser import parse_time_from_text
+from time_converter.utc_time_parser import parse_time_from_text, parse_times_from_text
 
 
 @pytest.mark.parametrize(
@@ -76,7 +76,9 @@ def test_parse_valid_timezone_offsets(
         "10:00 UTC+3:30",
         "10:00 UTC+3 :30",
         "10:00 UTC+3.5",
+        "10:00 UTC+3 .5",
         "10:00 UTC+3,5",
+        "10:00 UTC+3 ,5",
         "10:00 UTC + 3:30",
         "10:00 UTC + 3 :30",
         "10:00 UTC + 3.5",
@@ -105,7 +107,9 @@ def test_fractional_offset_is_not_partially_parsed() -> None:
     assert parse_time_from_text("10:00 UTC+3:30") is None
     assert parse_time_from_text("10:00 UTC+3 :30") is None
     assert parse_time_from_text("10:00 UTC+3.5") is None
+    assert parse_time_from_text("10:00 UTC+3 .5") is None
     assert parse_time_from_text("10:00 UTC+3,5") is None
+    assert parse_time_from_text("10:00 UTC+3 ,5") is None
     assert parse_time_from_text("10:00 UTC + 3:30") is None
     assert parse_time_from_text("10:00 UTC + 3 :30") is None
     assert parse_time_from_text("10:00 UTC + 3.5") is None
@@ -118,3 +122,25 @@ def test_spaced_utc_offset_is_not_parsed_as_plain_utc() -> None:
 
     assert parsed_time is not None
     assert parsed_time.timezone_label == "UTC+3"
+
+
+@pytest.mark.parametrize(
+    ("text", "expected_labels", "expected_hours"),
+    [
+        ("10:00 UTC+3, 12:00 CET", ["UTC+3", "CET"], [10, 12]),
+        ("10:00 GMT+3. 12:00 UTC", ["UTC+3", "UTC"], [10, 12]),
+    ],
+)
+def test_offset_punctuation_before_next_time_is_not_fractional_suffix(
+    text: str,
+    expected_labels: list[str],
+    expected_hours: list[int],
+) -> None:
+    parsed_times = parse_times_from_text(text, limit=5)
+
+    assert [parsed_time.timezone_label for parsed_time in parsed_times] == (
+        expected_labels
+    )
+    assert [parsed_time.source_datetime.hour for parsed_time in parsed_times] == (
+        expected_hours
+    )
