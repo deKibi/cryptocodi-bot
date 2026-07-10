@@ -11,7 +11,6 @@ from telegram.ext import ContextTypes
 
 # Custom Modules
 from calculator.calculator import CalculatorError, calculate
-from calculator.compact_number_normalizer import COMPACT_NUMBER_MULTIPLIERS
 from calculator.expression_parser import (
     ALTERNATIVE_OPERATORS,
     parse_expression,
@@ -40,23 +39,43 @@ from telegram_bot.state.message_signature_tracker import (
 
 LOGGER = logging.getLogger(__name__)
 CALCULATOR_MESSAGE_FEATURE = "calculator"
+MAX_VISIBLE_DECIMAL_PLACES = 5
 
 
-def _format_calculation_result(
-    expression: str,
-    result: int | float,
-) -> str:
-    if (
-        any(
-            suffix in expression.lower()
-            for suffix in COMPACT_NUMBER_MULTIPLIERS
-        )
-        and isinstance(result, float)
-        and result.is_integer()
+def _get_visible_fraction(fractional_part: str) -> str:
+    visible_fraction = fractional_part[:MAX_VISIBLE_DECIMAL_PLACES].rstrip("0")
+
+    if visible_fraction:
+        return visible_fraction
+
+    for index, digit in enumerate(
+        fractional_part[MAX_VISIBLE_DECIMAL_PLACES:],
+        start=MAX_VISIBLE_DECIMAL_PLACES,
     ):
+        if digit != "0":
+            return fractional_part[:index + 1].rstrip("0")
+
+    return ""
+
+
+def _format_calculation_result(result: int | float) -> str:
+    if isinstance(result, float) and result.is_integer():
         formatted_result = str(int(result))
+    elif isinstance(result, float):
+        integer_part, _separator, fractional_part = format(
+            result,
+            ".15f",
+        ).partition(".")
+        formatted_fraction = _get_visible_fraction(fractional_part)
+        formatted_result = integer_part
+
+        if formatted_fraction:
+            formatted_result = f"{formatted_result}.{formatted_fraction}"
     else:
         formatted_result = str(result)
+
+    if formatted_result == "-0":
+        formatted_result = "0"
 
     return format_large_number(formatted_result)
 
@@ -68,7 +87,7 @@ def format_calculation_response(
 ) -> str:
     """Format a calculation expression and result for a Telegram reply."""
     compact_expression = "".join(expression.split())
-    formatted_result = _format_calculation_result(expression, result)
+    formatted_result = _format_calculation_result(result)
 
     return get_message(
         "calculation_response",
