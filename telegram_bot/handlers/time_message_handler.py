@@ -75,8 +75,11 @@ def _format_time_conversion_block(
     """Format one parsed time conversion block."""
     source_datetime = parsed_time.source_datetime
     source_timezone = parsed_time.timezone_label
+    display_timezone = (
+        parsed_time.display_timezone_label or source_timezone
+    )
     first_line_prefix = (
-        f"{source_datetime:%H:%M} {source_timezone} "
+        f"{source_datetime:%H:%M} {display_timezone} "
         f"({source_datetime:%H:%M}) {source_timezone} "
     )
     continuation_indent = " " * len(first_line_prefix)

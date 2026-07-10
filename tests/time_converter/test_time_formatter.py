@@ -10,7 +10,7 @@ def test_format_timezone_offset_response() -> None:
 
     response_text = format_time_response(parsed_times, language="en")
 
-    assert "10:00 UTC+3" in response_text
+    assert "10:00 GMT+3 (10:00) UTC+3" in response_text
     assert "KYIV" in response_text
     assert "CET" in response_text
     assert "UTC" in response_text
@@ -28,6 +28,6 @@ def test_format_multiple_time_conversions() -> None:
 
     assert response_text.count("┬─>") == 2
     assert "10:00 UTC" in response_text
-    assert "12:00 UTC+3" in response_text
+    assert "12:00 GMT+3 (12:00) UTC+3" in response_text
     assert "UTC — UTC (UTC+00:00)" in response_text
     assert "UTC+3 — UTC+3 (UTC+03:00)" in response_text

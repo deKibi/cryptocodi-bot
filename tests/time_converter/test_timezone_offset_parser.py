@@ -86,6 +86,22 @@ def test_parse_multiple_offset_and_named_times_in_message_order() -> None:
     ]
 
 
+def test_parse_gmt_offset_preserves_display_timezone_label() -> None:
+    parsed_time = parse_time_from_text("10:00 gmt+3")
+
+    assert parsed_time is not None
+    assert parsed_time.timezone_label == "UTC+3"
+    assert parsed_time.display_timezone_label == "GMT+3"
+
+
+def test_parse_utc_offset_preserves_display_timezone_label() -> None:
+    parsed_time = parse_time_from_text("10:00 utc+3")
+
+    assert parsed_time is not None
+    assert parsed_time.timezone_label == "UTC+3"
+    assert parsed_time.display_timezone_label == "UTC+3"
+
+
 @pytest.mark.parametrize(
     "text",
     [
