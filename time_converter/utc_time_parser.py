@@ -36,7 +36,19 @@ class ParsedTime:
     timezone_label: str
 
 
-def _parse_named_time_match(match: re.Match[str]) -> ParsedTime:
+def _follows_colon_separator(match: re.Match[str]) -> bool:
+    preceding_index = match.start() - 1
+
+    while preceding_index >= 0 and match.string[preceding_index].isspace():
+        preceding_index -= 1
+
+    return preceding_index >= 0 and match.string[preceding_index] == ":"
+
+
+def _parse_named_time_match(match: re.Match[str]) -> Optional[ParsedTime]:
+    if _follows_colon_separator(match):
+        return None
+
     hour = int(match.group("hour"))
     minute_group = match.group("minute")
     minute = int(minute_group) if minute_group is not None else 0

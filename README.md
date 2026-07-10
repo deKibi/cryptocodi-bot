@@ -85,6 +85,19 @@ Fill `.env` with your own values:
 
 The real `.env` must not be committed to Git.
 
+Install development dependencies and run tests:
+
+```bash
+python -m pip install -r requirements-dev.txt
+pytest
+```
+
+Run time conversion coverage:
+
+```bash
+pytest --cov=time_converter --cov=telegram_bot.handlers.time_message_handler
+```
+
 Run the bot:
 
 ```bash
