@@ -14,13 +14,14 @@ from time_converter.time_utils import TIMEZONES_BY_LABEL
 NAMED_TIME_PATTERN: Final[re.Pattern[str]] = re.compile(
     r"(?<![\w:.\-+])(?P<hour>(?:[01]?\d|2[0-3]))"
     r"(?::(?P<minute>[0-5]\d))? ?(?P<timezone>UTC|CEST|CET|KYIV)\b"
-    r"(?![+-])",
+    r"(?!\s*[+-]|\s+\d)",
     flags=re.IGNORECASE,
 )
 OFFSET_TIME_PATTERN: Final[re.Pattern[str]] = re.compile(
     r"(?<![\w:.\-+])(?P<hour>(?:[01]?\d|2[0-3]))"
     r":(?P<minute>[0-5]\d) ?"
-    r"(?P<timezone>(?:UTC|GMT)(?P<sign>[+-])(?P<offset>0?\d|1[0-4]))"
+    r"(?P<timezone>(?:UTC|GMT)\s*(?P<sign>[+-])\s*"
+    r"(?P<offset>0?\d|1[0-4]))"
     r"(?![\w:]| ?[+-]|\s+\d)",
     flags=re.IGNORECASE,
 )

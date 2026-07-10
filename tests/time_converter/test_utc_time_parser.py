@@ -81,6 +81,7 @@ def test_parse_utc_time_from_text_skips_non_utc_matches() -> None:
         "10:00UTCabc",
         "-10:00 UTC",
         "10: 00 UTC",
+        "10:00 UTC + 3:30",
     ],
 )
 def test_reject_partial_named_timezone_matches(text: str) -> None:
