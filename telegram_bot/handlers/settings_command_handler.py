@@ -479,6 +479,11 @@ async def handle_settings_limit_menu_callback(
         if limit_type == "crypto"
         else settings.max_time_matches_per_message
     )
+    active_limit_is_overridden = (
+        settings.max_crypto_pairs_per_message_is_overridden
+        if limit_type == "crypto"
+        else settings.max_time_matches_per_message_is_overridden
+    )
     setting_name = get_message(
         (
             "settings_max_crypto_button"
@@ -501,6 +506,7 @@ async def handle_settings_limit_menu_callback(
                 chat_id,
                 limit_type,
                 active_limit,
+                active_limit_is_overridden,
                 requester_user_id=requester_user_id,
             ),
         )

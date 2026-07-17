@@ -39,6 +39,8 @@ class GroupSettings:
     time_converter_enabled: bool = True
     max_crypto_pairs_per_message: int = MAX_CRYPTO_PAIRS_PER_MESSAGE
     max_time_matches_per_message: int = MAX_TIME_MATCHES_PER_MESSAGE
+    max_crypto_pairs_per_message_is_overridden: bool = False
+    max_time_matches_per_message_is_overridden: bool = False
 
 
 GroupSettingsCache = OrderedDict[int, GroupSettings]
@@ -145,6 +147,12 @@ class GroupSettingsStorage:
                 TIME_LIMIT_TYPE,
                 MAX_TIME_MATCHES_PER_MESSAGE,
             ),
+            max_crypto_pairs_per_message_is_overridden=(
+                CRYPTO_LIMIT_TYPE in limit_overrides
+            ),
+            max_time_matches_per_message_is_overridden=(
+                TIME_LIMIT_TYPE in limit_overrides
+            ),
         )
 
     def save_feature_settings(
@@ -236,12 +244,14 @@ class GroupSettingsStorage:
             CRYPTO_LIMIT_TYPE,
             settings.max_crypto_pairs_per_message,
             MAX_CRYPTO_PAIRS_PER_MESSAGE,
+            settings.max_crypto_pairs_per_message_is_overridden,
         )
         self._sync_limit_override(
             chat_id,
             TIME_LIMIT_TYPE,
             settings.max_time_matches_per_message,
             MAX_TIME_MATCHES_PER_MESSAGE,
+            settings.max_time_matches_per_message_is_overridden,
         )
 
     def _sync_limit_override(
@@ -250,8 +260,9 @@ class GroupSettingsStorage:
         limit_type: str,
         limit_value: int,
         default_limit: int,
+        is_overridden: bool,
     ) -> None:
-        if limit_value == default_limit:
+        if not is_overridden and limit_value == default_limit:
             self.delete_limit_override(chat_id, limit_type)
             return
 
@@ -440,6 +451,12 @@ def update_group_setting(
                 max_time_matches_per_message=(
                     current_settings.max_time_matches_per_message
                 ),
+                max_crypto_pairs_per_message_is_overridden=(
+                    current_settings.max_crypto_pairs_per_message_is_overridden
+                ),
+                max_time_matches_per_message_is_overridden=(
+                    current_settings.max_time_matches_per_message_is_overridden
+                ),
             ),
         )
 
@@ -458,6 +475,12 @@ def update_group_setting(
                 max_time_matches_per_message=(
                     current_settings.max_time_matches_per_message
                 ),
+                max_crypto_pairs_per_message_is_overridden=(
+                    current_settings.max_crypto_pairs_per_message_is_overridden
+                ),
+                max_time_matches_per_message_is_overridden=(
+                    current_settings.max_time_matches_per_message_is_overridden
+                ),
             ),
         )
 
@@ -475,6 +498,12 @@ def update_group_setting(
                 ),
                 max_time_matches_per_message=(
                     current_settings.max_time_matches_per_message
+                ),
+                max_crypto_pairs_per_message_is_overridden=(
+                    current_settings.max_crypto_pairs_per_message_is_overridden
+                ),
+                max_time_matches_per_message_is_overridden=(
+                    current_settings.max_time_matches_per_message_is_overridden
                 ),
             ),
         )

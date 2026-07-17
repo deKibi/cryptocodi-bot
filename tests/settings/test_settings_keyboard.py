@@ -113,6 +113,7 @@ def test_settings_limit_keyboard_shows_default_limit_button() -> None:
         -100,
         "crypto",
         1,
+        True,
         requester_user_id=456,
     )
 
@@ -124,3 +125,45 @@ def test_settings_limit_keyboard_shows_default_limit_button() -> None:
         "settings_default_limit:-100:crypto:bot_info:456"
     )
     assert rows[2][0].text == "Back"
+
+
+def test_settings_limit_keyboard_marks_default_when_no_override() -> None:
+    keyboard = build_settings_limit_keyboard(
+        -100,
+        "crypto",
+        5,
+        False,
+    )
+
+    rows = keyboard.inline_keyboard
+
+    assert rows[0][2].text == "5"
+    assert rows[1][0].text == "✅ Default (5)"
+
+
+def test_settings_limit_keyboard_marks_hard_limit_when_equal_to_default() -> None:
+    keyboard = build_settings_limit_keyboard(
+        -100,
+        "crypto",
+        5,
+        True,
+    )
+
+    rows = keyboard.inline_keyboard
+
+    assert rows[0][2].text == "✅ 5"
+    assert rows[1][0].text == "Default (5)"
+
+
+def test_time_limit_keyboard_marks_default_when_no_override() -> None:
+    keyboard = build_settings_limit_keyboard(
+        -100,
+        "time",
+        5,
+        False,
+    )
+
+    rows = keyboard.inline_keyboard
+
+    assert rows[0][2].text == "5"
+    assert rows[1][0].text == "✅ Default (5)"

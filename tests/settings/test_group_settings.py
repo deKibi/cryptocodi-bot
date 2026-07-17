@@ -49,6 +49,8 @@ def test_save_group_settings_persists_feature_flags_and_limit_overrides(
         time_converter_enabled=True,
         max_crypto_pairs_per_message=3,
         max_time_matches_per_message=1,
+        max_crypto_pairs_per_message_is_overridden=True,
+        max_time_matches_per_message_is_overridden=True,
     )
 
     assert group_settings.save_group_settings(-100, saved_settings)
@@ -102,6 +104,7 @@ def test_reset_crypto_limit_uses_default_without_changing_time_override(
     assert updated_settings == GroupSettings(
         max_crypto_pairs_per_message=10,
         max_time_matches_per_message=3,
+        max_time_matches_per_message_is_overridden=True,
     )
 
 
@@ -131,7 +134,52 @@ def test_feature_toggle_does_not_remove_limit_overrides(
         calculator_enabled=False,
         max_crypto_pairs_per_message=1,
         max_time_matches_per_message=3,
+        max_crypto_pairs_per_message_is_overridden=True,
+        max_time_matches_per_message_is_overridden=True,
     )
+
+
+def test_limit_override_equal_to_default_remains_explicit(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _use_temporary_storage(monkeypatch, tmp_path / "settings.sqlite3")
+    monkeypatch.setattr(
+        group_settings,
+        "MAX_CRYPTO_PAIRS_PER_MESSAGE",
+        5,
+    )
+
+    updated_settings = group_settings.update_group_setting(
+        -100,
+        "max_crypto_pairs_per_message",
+        5,
+    )
+
+    assert updated_settings == GroupSettings(
+        max_crypto_pairs_per_message=5,
+        max_crypto_pairs_per_message_is_overridden=True,
+    )
+
+
+def test_default_limit_removes_explicit_override(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _use_temporary_storage(monkeypatch, tmp_path / "settings.sqlite3")
+    group_settings.update_group_setting(
+        -100,
+        "max_time_matches_per_message",
+        5,
+    )
+
+    updated_settings = group_settings.update_group_setting(
+        -100,
+        "max_time_matches_per_message",
+        None,
+    )
+
+    assert updated_settings == GroupSettings()
 
 
 def test_storage_uses_separate_not_null_limit_override_table(

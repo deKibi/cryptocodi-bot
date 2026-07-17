@@ -147,6 +147,7 @@ def build_settings_limit_keyboard(
     chat_id: int,
     limit_type: str,
     active_limit: int,
+    active_limit_is_overridden: bool,
     requester_user_id: int | None = None,
 ) -> InlineKeyboardMarkup:
     """Build a strict 1/3/5 limit selection keyboard."""
@@ -161,7 +162,7 @@ def build_settings_limit_keyboard(
     for limit in ALLOWED_MESSAGE_LIMITS:
         label = str(limit)
 
-        if limit == active_limit:
+        if active_limit_is_overridden and limit == active_limit:
             label = f"✅ {label}"
 
         buttons.append(
@@ -179,7 +180,11 @@ def build_settings_limit_keyboard(
             buttons,
             [
                 InlineKeyboardButton(
-                    text=f"Default ({default_limit})",
+                    text=(
+                        f"Default ({default_limit})"
+                        if active_limit_is_overridden
+                        else f"✅ Default ({default_limit})"
+                    ),
                     callback_data=(
                         f"{SETTINGS_DEFAULT_LIMIT_CALLBACK_PREFIX}:"
                         f"{chat_id}:{limit_type}{context}"
