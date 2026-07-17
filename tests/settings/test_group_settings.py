@@ -3,6 +3,7 @@
 # Standard Libraries
 import sqlite3
 from pathlib import Path
+from unittest.mock import Mock
 
 # Third-party Libraries
 import pytest
@@ -36,6 +37,46 @@ def test_get_group_settings_returns_defaults_when_absent(
     settings = group_settings.get_group_settings(-100)
 
     assert settings == group_settings.get_default_group_settings()
+
+
+def test_get_group_settings_caches_defaults_when_absent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    storage = Mock()
+    storage.get_settings.return_value = None
+    group_settings._group_settings_cache.clear()
+    monkeypatch.setattr(
+        group_settings,
+        "_get_group_settings_storage",
+        lambda: storage,
+    )
+
+    first_settings = group_settings.get_group_settings(-100)
+    second_settings = group_settings.get_group_settings(-100)
+
+    assert first_settings == group_settings.get_default_group_settings()
+    assert second_settings == group_settings.get_default_group_settings()
+    storage.get_settings.assert_called_once_with(-100)
+
+
+def test_update_group_setting_replaces_cached_defaults(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _use_temporary_storage(monkeypatch, tmp_path / "settings.sqlite3")
+
+    assert group_settings.get_group_settings(-100) == GroupSettings()
+
+    updated_settings = group_settings.update_group_setting(
+        -100,
+        "calculator_enabled",
+        False,
+    )
+
+    assert updated_settings == GroupSettings(calculator_enabled=False)
+    assert group_settings.get_group_settings(-100) == GroupSettings(
+        calculator_enabled=False,
+    )
 
 
 def test_save_group_settings_persists_feature_flags_and_limit_overrides(

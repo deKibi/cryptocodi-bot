@@ -328,7 +328,9 @@ def get_group_settings(chat_id: int) -> GroupSettings:
         return get_default_group_settings()
 
     if stored_settings is None:
-        return get_default_group_settings()
+        default_settings = get_default_group_settings()
+        _remember_group_settings(chat_id, default_settings)
+        return default_settings
 
     _remember_group_settings(chat_id, stored_settings)
     return stored_settings
