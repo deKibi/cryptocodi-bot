@@ -57,6 +57,35 @@ def get_positive_int_env(variable_name: str, default: int) -> int:
     return parsed_value
 
 
+def get_positive_int_env_or_default(variable_name: str, default: int) -> int:
+    """Read a positive integer or fall back to its default when invalid."""
+    value = os.getenv(variable_name)
+
+    if value is None or not value.strip():
+        return default
+
+    try:
+        parsed_value = int(value)
+    except ValueError:
+        LOGGER.warning(
+            "Environment variable %s must be an integer; using %s default",
+            variable_name,
+            default,
+        )
+        return default
+
+    if parsed_value <= 0:
+        LOGGER.warning(
+            "Environment variable %s must be greater than zero; "
+            "using %s default",
+            variable_name,
+            default,
+        )
+        return default
+
+    return parsed_value
+
+
 def get_optional_int_env(variable_name: str) -> Optional[int]:
     """Read an optional integer environment variable."""
     value = os.getenv(variable_name)
@@ -198,7 +227,7 @@ DEFAULT_MAX_CRYPTO_PAIRS_PER_MESSAGE: Final[int] = 5
 MAX_CRYPTO_PAIRS_PER_MESSAGE_IS_CONFIGURED: Final[bool] = (
     is_env_configured("MAX_CRYPTO_PAIRS_PER_MESSAGE")
 )
-MAX_CRYPTO_PAIRS_PER_MESSAGE: Final[int] = get_positive_int_env(
+MAX_CRYPTO_PAIRS_PER_MESSAGE: Final[int] = get_positive_int_env_or_default(
     variable_name="MAX_CRYPTO_PAIRS_PER_MESSAGE",
     default=DEFAULT_MAX_CRYPTO_PAIRS_PER_MESSAGE,
 )
@@ -207,7 +236,7 @@ DEFAULT_MAX_TIME_MATCHES_PER_MESSAGE: Final[int] = 5
 MAX_TIME_MATCHES_PER_MESSAGE_IS_CONFIGURED: Final[bool] = (
     is_env_configured("MAX_TIME_MATCHES_PER_MESSAGE")
 )
-MAX_TIME_MATCHES_PER_MESSAGE: Final[int] = get_positive_int_env(
+MAX_TIME_MATCHES_PER_MESSAGE: Final[int] = get_positive_int_env_or_default(
     variable_name="MAX_TIME_MATCHES_PER_MESSAGE",
     default=DEFAULT_MAX_TIME_MATCHES_PER_MESSAGE,
 )

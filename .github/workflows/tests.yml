@@ -27,6 +27,9 @@ jobs:
           - component: crypto-calculator
             test_path: tests/crypto_calculator
 
+          - component: settings
+            test_path: tests/settings
+
     steps:
       - uses: actions/checkout@v4
 

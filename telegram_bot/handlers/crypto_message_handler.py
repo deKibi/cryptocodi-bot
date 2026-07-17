@@ -14,7 +14,6 @@ from telegram.ext import ContextTypes
 
 # Custom Modules
 from calculator.calculator import CalculatorError
-from config import MAX_CRYPTO_PAIRS_PER_MESSAGE
 from crypto_calculator.crypto_calculator import (
     CalculatedCryptoExpression,
     ZeroCryptoAmountError,
@@ -61,6 +60,7 @@ from telegram_bot.logging_config import (
 )
 from telegram_bot.services.delete_authorization import can_delete_bot_response
 from telegram_bot.services.number_formatter import format_large_number
+from telegram_bot.settings.group_settings import get_effective_chat_settings
 from telegram_bot.state.message_reply_tracker import (
     forget_related_reply_message_id,
     get_related_reply_message_id,
@@ -436,6 +436,7 @@ def format_fiat_to_crypto_response(
 def _get_unique_crypto_amounts(
     message_text: str,
     allow_embedded_usdt: bool,
+    limit: int,
 ) -> list[ResolvedCryptoAmount]:
     unique_crypto_amounts: list[ResolvedCryptoAmount] = []
     seen_pairs: set[tuple[Decimal, str, str]] = set()
@@ -475,7 +476,7 @@ def _get_unique_crypto_amounts(
         seen_pairs.add(pair)
         unique_crypto_amounts.append(resolved_crypto_amount)
 
-        if len(unique_crypto_amounts) == MAX_CRYPTO_PAIRS_PER_MESSAGE:
+        if len(unique_crypto_amounts) == limit:
             break
 
     return unique_crypto_amounts
@@ -690,6 +691,17 @@ async def handle_crypto_message(
     if chat is None:
         return
 
+    settings = get_effective_chat_settings(chat.id, chat.type)
+
+    if not settings.crypto_converter_enabled:
+        await _cleanup_tracked_crypto_response(
+            context,
+            chat.id,
+            message.message_id,
+            format_log_metadata(get_update_metadata(update)),
+        )
+        return
+
     if was_reply_deleted(
         context.bot_data,
         CRYPTO_MESSAGE_FEATURE,
@@ -902,6 +914,7 @@ async def handle_crypto_message(
                     _get_unique_crypto_amounts,
                     message_text,
                     chat.type == ChatType.PRIVATE,
+                    settings.max_crypto_pairs_per_message,
                 )
     except CoinGeckoDailyRequestLimitExceeded:
         user = update.effective_user
