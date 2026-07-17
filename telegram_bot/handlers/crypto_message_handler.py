@@ -381,6 +381,23 @@ def _format_reverse_crypto_amount(
         quantizer,
         rounding=ROUND_HALF_UP,
     )
+
+    if rounded_amount == 0 and crypto_amount > 0:
+        decimal_places = max(decimal_places, -crypto_amount.adjusted())
+        quantizer = Decimal("1").scaleb(-decimal_places)
+        rounded_amount = crypto_amount.quantize(
+            quantizer,
+            rounding=ROUND_HALF_UP,
+        )
+
+        while rounded_amount == 0:
+            decimal_places += 1
+            quantizer = Decimal("1").scaleb(-decimal_places)
+            rounded_amount = crypto_amount.quantize(
+                quantizer,
+                rounding=ROUND_HALF_UP,
+            )
+
     formatted_amount = (
         f"{rounded_amount:.{decimal_places}f}"
         if decimal_places

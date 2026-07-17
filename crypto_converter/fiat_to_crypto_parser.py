@@ -28,6 +28,7 @@ FIAT_TO_CRYPTO_PATTERN: Final[re.Pattern[str]] = re.compile(
     flags=re.IGNORECASE,
 )
 BLOCKED_FIAT_TO_CRYPTO_TARGETS: Final[frozenset[str]] = frozenset({"USD"})
+MIN_FIAT_TO_CRYPTO_USD_AMOUNT: Final[Decimal] = Decimal("0.1")
 
 
 @dataclass(frozen=True)
@@ -68,7 +69,7 @@ def parse_fiat_to_crypto_conversion(
             matched_multiplier.lower()
         ]
 
-    if usd_amount <= 0:
+    if usd_amount < MIN_FIAT_TO_CRYPTO_USD_AMOUNT:
         return None
 
     ticker = match.group("ticker").upper()

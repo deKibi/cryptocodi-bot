@@ -43,6 +43,7 @@ def _build_fiat_to_crypto_conversion(
         (Decimal("500"), Decimal("0.02"), "0.02"),
         (Decimal("3000"), Decimal("0.0033333333"), "0.00333"),
         (Decimal("0.05"), Decimal("200"), "200"),
+        (Decimal("0.05"), Decimal("2"), "2"),
     ],
 )
 def test_format_fiat_to_crypto_response_uses_readable_precision(
@@ -61,3 +62,18 @@ def test_format_fiat_to_crypto_response_uses_readable_precision(
 
     assert "<code>10$ BNB:</code>" in response_text
     assert f"<code>{expected_amount} BNB</code>" in response_text
+
+
+def test_format_fiat_to_crypto_response_preserves_nonzero_amount() -> None:
+    conversion = _build_fiat_to_crypto_conversion(
+        usd_amount=Decimal("0.1"),
+        crypto_amount=Decimal("0.000000001"),
+        ticker="BTC",
+        unit_price_usd=Decimal("100000000"),
+    )
+
+    response_text = format_fiat_to_crypto_response(conversion, language="en")
+
+    assert "<code>0.1$ BTC:</code>" in response_text
+    assert "<code>0.000000001 BTC</code>" in response_text
+    assert "<code>0 BTC</code>" not in response_text
