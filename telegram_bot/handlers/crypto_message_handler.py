@@ -26,8 +26,14 @@ from crypto_converter.crypto_amount_parser import (
     contains_only_resolved_crypto_amounts,
     resolve_crypto_amounts_from_text,
 )
+from crypto_converter.fiat_to_crypto_parser import (
+    ParsedFiatToCryptoConversion,
+    parse_fiat_to_crypto_conversion,
+)
 from crypto_converter.crypto_price_converter import (
     CryptoPriceConversion,
+    FiatToCryptoConversion,
+    convert_fiat_to_resolved_crypto,
     convert_resolved_coin_to_fiat,
 )
 from crypto_converter.coingecko_client import CoinGeckoPriceUnavailableError
@@ -67,6 +73,8 @@ from telegram_bot.state.message_signature_tracker import (
 LOGGER = logging.getLogger(__name__)
 CRYPTO_MESSAGE_FEATURE = "crypto"
 CRYPTO_RESPONSE_FEATURE = "crypto_response"
+REVERSE_CRYPTO_USD_PRECISION_STEP = Decimal("0.1")
+MAX_REVERSE_CRYPTO_DECIMAL_PLACES = 8
 
 
 async def handle_delete_crypto_response(
@@ -353,6 +361,56 @@ def format_crypto_calculation_response(
     )
 
 
+def _format_reverse_crypto_amount(
+    conversion: FiatToCryptoConversion,
+) -> str:
+    crypto_amount = conversion.crypto_conversion.amount
+    unit_price_usd = conversion.crypto_conversion.unit_price_usd
+    decimal_places = 0
+    crypto_step = Decimal("1")
+
+    while (
+        decimal_places < MAX_REVERSE_CRYPTO_DECIMAL_PLACES
+        and crypto_step * unit_price_usd > REVERSE_CRYPTO_USD_PRECISION_STEP
+    ):
+        decimal_places += 1
+        crypto_step /= Decimal("10")
+
+    quantizer = Decimal("1").scaleb(-decimal_places)
+    rounded_amount = crypto_amount.quantize(
+        quantizer,
+        rounding=ROUND_HALF_UP,
+    )
+    formatted_amount = (
+        f"{rounded_amount:.{decimal_places}f}"
+        if decimal_places
+        else f"{rounded_amount:.0f}"
+    )
+
+    if "." in formatted_amount:
+        formatted_amount = formatted_amount.rstrip("0").rstrip(".")
+
+    return format_large_number(formatted_amount or "0")
+
+
+def format_fiat_to_crypto_response(
+    conversion: FiatToCryptoConversion,
+    language: str = DEFAULT_LANGUAGE,
+) -> str:
+    """Format a USD to cryptocurrency conversion for a Telegram reply."""
+    usd_amount = _format_decimal(conversion.usd_amount)
+    crypto_amount = _format_reverse_crypto_amount(conversion)
+    ticker = html.escape(conversion.crypto_conversion.ticker)
+
+    return get_message(
+        "fiat_to_crypto_response",
+        language=language,
+        usd_amount=usd_amount,
+        ticker=ticker,
+        crypto_amount=crypto_amount,
+    )
+
+
 def _get_unique_crypto_amounts(
     message_text: str,
     allow_embedded_usdt: bool,
@@ -548,7 +606,9 @@ async def handle_crypto_message(
         )
         return
 
+    fiat_to_crypto_request: ParsedFiatToCryptoConversion | None = None
     resolved_calculation_coin = None
+    resolved_fiat_to_crypto_coin = None
 
     try:
         if crypto_calculation is not None:
@@ -569,11 +629,22 @@ async def handle_crypto_message(
             ]
         else:
             crypto_calculation = None
-            resolved_crypto_amounts = await asyncio.to_thread(
-                _get_unique_crypto_amounts,
+            fiat_to_crypto_request = parse_fiat_to_crypto_conversion(
                 message_text,
-                chat.type == ChatType.PRIVATE,
             )
+
+            if fiat_to_crypto_request is not None:
+                resolved_fiat_to_crypto_coin = await asyncio.to_thread(
+                    resolve_coin,
+                    fiat_to_crypto_request.ticker,
+                )
+                resolved_crypto_amounts = []
+            else:
+                resolved_crypto_amounts = await asyncio.to_thread(
+                    _get_unique_crypto_amounts,
+                    message_text,
+                    chat.type == ChatType.PRIVATE,
+                )
     except CoinGeckoDailyRequestLimitExceeded:
         user = update.effective_user
         language = resolve_context_language(
@@ -603,7 +674,7 @@ async def handle_crypto_message(
         )
         return
 
-    if not resolved_crypto_amounts:
+    if not resolved_crypto_amounts and resolved_fiat_to_crypto_coin is None:
         await _cleanup_tracked_crypto_response(
             context,
             chat.id,
@@ -620,7 +691,20 @@ async def handle_crypto_message(
         user.language_code if user is not None else None,
     )
 
-    if crypto_calculation is None:
+    if (
+        fiat_to_crypto_request is not None
+        and resolved_fiat_to_crypto_coin is not None
+    ):
+        crypto_signature = (
+            language,
+            (
+                "fiat_to_crypto",
+                fiat_to_crypto_request.usd_amount,
+                resolved_fiat_to_crypto_coin.coin_id,
+                resolved_fiat_to_crypto_coin.ticker,
+            ),
+        )
+    elif crypto_calculation is None:
         amount_signature = tuple(
             (
                 resolved_crypto_amount.amount,
@@ -655,6 +739,7 @@ async def handle_crypto_message(
     converted_matches: list[
         tuple[ResolvedCryptoAmount, CryptoPriceConversion]
     ] = []
+    fiat_to_crypto_conversion: FiatToCryptoConversion | None = None
     metadata = get_update_metadata(update)
     metadata_text = format_log_metadata(metadata)
     user_id = metadata["user_id"]
@@ -668,11 +753,18 @@ async def handle_crypto_message(
     if not isinstance(chat_id, int):
         chat_id = None
 
-    for resolved_crypto_amount in resolved_crypto_amounts:
-        if not crypto_usage_limiter.try_acquire_conversion_attempt(
-            user_id=user_id,
-            chat_id=chat_id,
-        ):
+    if (
+        fiat_to_crypto_request is not None
+        and resolved_fiat_to_crypto_coin is not None
+    ):
+        conversion_attempt_reserved = (
+            crypto_usage_limiter.try_acquire_conversion_attempt(
+                user_id=user_id,
+                chat_id=chat_id,
+            )
+        )
+
+        if not conversion_attempt_reserved:
             limit_reached_message = get_message(
                 "personal_crypto_limit",
                 language=language,
@@ -682,108 +774,252 @@ async def handle_crypto_message(
                 "Personal crypto conversion limit reached | %s",
                 metadata_text,
             )
-            break
-
-        try:
-            conversion = await asyncio.to_thread(
-                convert_resolved_coin_to_fiat,
-                resolved_crypto_amount.amount,
-                resolved_crypto_amount.coin,
-            )
-        except CoinGeckoDailyRequestLimitExceeded:
-            crypto_usage_limiter.release_conversion_attempt(
+        else:
+            try:
+                fiat_to_crypto_conversion = await asyncio.to_thread(
+                    convert_fiat_to_resolved_crypto,
+                    fiat_to_crypto_request.usd_amount,
+                    resolved_fiat_to_crypto_coin,
+                )
+            except CoinGeckoDailyRequestLimitExceeded:
+                crypto_usage_limiter.release_conversion_attempt(
+                    user_id=user_id,
+                    chat_id=chat_id,
+                )
+                limit_reached_message = get_message(
+                    "global_crypto_limit",
+                    language=language,
+                )
+                limit_scope = "global"
+                LOGGER.warning(
+                    "Global CoinGecko request limit reached | %s",
+                    metadata_text,
+                )
+            except CoinGeckoPriceUnavailableError:
+                crypto_usage_limiter.release_conversion_attempt(
+                    user_id=user_id,
+                    chat_id=chat_id,
+                )
+                LOGGER.info(
+                    "CoinGecko price unavailable for %s (%s) | %s",
+                    resolved_fiat_to_crypto_coin.ticker,
+                    resolved_fiat_to_crypto_coin.coin_id,
+                    metadata_text,
+                )
+            except Exception:
+                crypto_usage_limiter.release_conversion_attempt(
+                    user_id=user_id,
+                    chat_id=chat_id,
+                )
+                raise
+            else:
+                if fiat_to_crypto_conversion is None:
+                    crypto_usage_limiter.release_conversion_attempt(
+                        user_id=user_id,
+                        chat_id=chat_id,
+                    )
+                elif not crypto_usage_limiter.try_complete_conversion(
+                    user_id=user_id,
+                    chat_id=chat_id,
+                ):
+                    crypto_usage_limiter.release_conversion_attempt(
+                        user_id=user_id,
+                        chat_id=chat_id,
+                    )
+                    fiat_to_crypto_conversion = None
+                    limit_reached_message = get_message(
+                        "personal_crypto_limit",
+                        language=language,
+                    )
+                    limit_scope = "personal"
+                    LOGGER.warning(
+                        "Personal crypto conversion limit reached while "
+                        "completing conversion | %s",
+                        metadata_text,
+                    )
+    else:
+        for resolved_crypto_amount in resolved_crypto_amounts:
+            if not crypto_usage_limiter.try_acquire_conversion_attempt(
                 user_id=user_id,
                 chat_id=chat_id,
-            )
-            limit_reached_message = get_message(
-                "global_crypto_limit",
-                language=language,
-            )
-            limit_scope = "global"
-            LOGGER.warning(
-                "Global CoinGecko request limit reached | %s",
-                metadata_text,
-            )
-            break
-        except CoinGeckoPriceUnavailableError:
-            crypto_usage_limiter.release_conversion_attempt(
+            ):
+                limit_reached_message = get_message(
+                    "personal_crypto_limit",
+                    language=language,
+                )
+                limit_scope = "personal"
+                LOGGER.warning(
+                    "Personal crypto conversion limit reached | %s",
+                    metadata_text,
+                )
+                break
+
+            try:
+                conversion = await asyncio.to_thread(
+                    convert_resolved_coin_to_fiat,
+                    resolved_crypto_amount.amount,
+                    resolved_crypto_amount.coin,
+                )
+            except CoinGeckoDailyRequestLimitExceeded:
+                crypto_usage_limiter.release_conversion_attempt(
+                    user_id=user_id,
+                    chat_id=chat_id,
+                )
+                limit_reached_message = get_message(
+                    "global_crypto_limit",
+                    language=language,
+                )
+                limit_scope = "global"
+                LOGGER.warning(
+                    "Global CoinGecko request limit reached | %s",
+                    metadata_text,
+                )
+                break
+            except CoinGeckoPriceUnavailableError:
+                crypto_usage_limiter.release_conversion_attempt(
+                    user_id=user_id,
+                    chat_id=chat_id,
+                )
+                LOGGER.info(
+                    "CoinGecko price unavailable for %s (%s) | %s",
+                    resolved_crypto_amount.coin.ticker,
+                    resolved_crypto_amount.coin.coin_id,
+                    metadata_text,
+                )
+                continue
+            except Exception:
+                crypto_usage_limiter.release_conversion_attempt(
+                    user_id=user_id,
+                    chat_id=chat_id,
+                )
+                raise
+
+            if not crypto_usage_limiter.try_complete_conversion(
                 user_id=user_id,
                 chat_id=chat_id,
-            )
-            LOGGER.info(
-                "CoinGecko price unavailable for %s (%s) | %s",
-                resolved_crypto_amount.coin.ticker,
-                resolved_crypto_amount.coin.coin_id,
-                metadata_text,
-            )
-            continue
-        except Exception:
-            crypto_usage_limiter.release_conversion_attempt(
-                user_id=user_id,
-                chat_id=chat_id,
-            )
-            raise
+            ):
+                crypto_usage_limiter.release_conversion_attempt(
+                    user_id=user_id,
+                    chat_id=chat_id,
+                )
+                limit_reached_message = get_message(
+                    "personal_crypto_limit",
+                    language=language,
+                )
+                limit_scope = "personal"
+                LOGGER.warning(
+                    "Personal crypto conversion limit reached while "
+                    "completing conversion | %s",
+                    metadata_text,
+                )
+                break
 
-        if not crypto_usage_limiter.try_complete_conversion(
-            user_id=user_id,
-            chat_id=chat_id,
-        ):
-            crypto_usage_limiter.release_conversion_attempt(
-                user_id=user_id,
-                chat_id=chat_id,
-            )
-            limit_reached_message = get_message(
-                "personal_crypto_limit",
-                language=language,
-            )
-            limit_scope = "personal"
-            LOGGER.warning(
-                "Personal crypto conversion limit reached while completing "
-                "conversion | %s",
-                metadata_text,
-            )
-            break
+            converted_matches.append((resolved_crypto_amount, conversion))
 
-        converted_matches.append((resolved_crypto_amount, conversion))
-
-    if converted_matches:
+    if converted_matches or fiat_to_crypto_conversion is not None:
         conversions = [
             conversion
             for _resolved_crypto_amount, conversion in converted_matches
         ]
-        matched_texts = [
-            resolved_crypto_amount.matched_text
-            for resolved_crypto_amount, _conversion in converted_matches
-        ]
+        matched_texts = []
+
+        if fiat_to_crypto_conversion is not None:
+            conversions = [fiat_to_crypto_conversion.crypto_conversion]
+            matched_texts = [fiat_to_crypto_request.matched_text]
+        else:
+            matched_texts = [
+                resolved_crypto_amount.matched_text
+                for resolved_crypto_amount, _conversion in converted_matches
+            ]
 
         LOGGER.info(
             "Crypto amounts detected: %d | matches=%r | %s",
-            len(converted_matches),
+            len(conversions),
             matched_texts,
             metadata_text,
         )
-        log_detected_crypto_conversion(
-            {
-                "chat_type": metadata["chat_type"],
-                "matches": [
-                    {
-                        "matched_text": resolved_crypto_amount.matched_text,
-                        "parsed_amount": str(resolved_crypto_amount.amount),
-                        "parsed_ticker": resolved_crypto_amount.coin.ticker,
-                        "coin_id": conversion.coin_id,
-                        "converted_amounts": {
-                            "usd": str(conversion.total_usd),
-                            "uah": str(conversion.total_uah),
-                        },
-                    }
-                    for resolved_crypto_amount, conversion in converted_matches
-                ],
-            }
-        )
 
-        if crypto_calculation is None:
+        if fiat_to_crypto_conversion is not None:
+            log_detected_crypto_conversion(
+                {
+                    "chat_type": metadata["chat_type"],
+                    "matches": [
+                        {
+                            "matched_text": fiat_to_crypto_request.matched_text,
+                            "parsed_amount": str(
+                                fiat_to_crypto_request.usd_amount
+                            ),
+                            "parsed_ticker": "USD",
+                            "coin_id": (
+                                fiat_to_crypto_conversion
+                                .crypto_conversion
+                                .coin_id
+                            ),
+                            "converted_amounts": {
+                                "crypto": str(
+                                    fiat_to_crypto_conversion
+                                    .crypto_conversion
+                                    .amount
+                                ),
+                                "ticker": (
+                                    fiat_to_crypto_conversion
+                                    .crypto_conversion
+                                    .ticker
+                                ),
+                            },
+                        }
+                    ],
+                }
+            )
+            response_text = format_fiat_to_crypto_response(
+                fiat_to_crypto_conversion,
+                language,
+            )
+        elif crypto_calculation is None:
+            log_detected_crypto_conversion(
+                {
+                    "chat_type": metadata["chat_type"],
+                    "matches": [
+                        {
+                            "matched_text": resolved_crypto_amount.matched_text,
+                            "parsed_amount": str(
+                                resolved_crypto_amount.amount
+                            ),
+                            "parsed_ticker": resolved_crypto_amount.coin.ticker,
+                            "coin_id": conversion.coin_id,
+                            "converted_amounts": {
+                                "usd": str(conversion.total_usd),
+                                "uah": str(conversion.total_uah),
+                            },
+                        }
+                        for resolved_crypto_amount, conversion
+                        in converted_matches
+                    ],
+                }
+            )
             response_text = format_crypto_responses(conversions, language)
         else:
+            log_detected_crypto_conversion(
+                {
+                    "chat_type": metadata["chat_type"],
+                    "matches": [
+                        {
+                            "matched_text": resolved_crypto_amount.matched_text,
+                            "parsed_amount": str(
+                                resolved_crypto_amount.amount
+                            ),
+                            "parsed_ticker": resolved_crypto_amount.coin.ticker,
+                            "coin_id": conversion.coin_id,
+                            "converted_amounts": {
+                                "usd": str(conversion.total_usd),
+                                "uah": str(conversion.total_uah),
+                            },
+                        }
+                        for resolved_crypto_amount, conversion
+                        in converted_matches
+                    ],
+                }
+            )
             response_text = format_crypto_calculation_response(
                 crypto_calculation,
                 conversions[0],

@@ -238,6 +238,12 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
             "<code>{total_uah} uah</code>"
         ),
     },
+    "fiat_to_crypto_response": {
+        "en": (
+            "<code>{usd_amount}$ {ticker}:</code>\n"
+            "<code>{crypto_amount} {ticker}</code>"
+        ),
+    },
     "time_response": {
         "uk": (
             "<code>{conversion_blocks}</code>\n\n"
