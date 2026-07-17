@@ -247,7 +247,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
     "fiat_to_crypto_response": {
         "en": (
             "<code>{usd_amount}$ {ticker}:</code>\n"
-            "<code>≈{crypto_amount} {ticker}</code>\n\n"
+            "≈ <code>{crypto_amount}</code> {ticker}\n\n"
             "<i>{approximation_note}</i>"
         ),
     },
