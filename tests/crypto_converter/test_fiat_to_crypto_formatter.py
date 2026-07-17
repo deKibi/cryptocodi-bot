@@ -61,7 +61,8 @@ def test_format_fiat_to_crypto_response_uses_readable_precision(
     response_text = format_fiat_to_crypto_response(conversion, language="en")
 
     assert "<code>10$ BNB:</code>" in response_text
-    assert f"<code>≈{expected_amount} BNB</code>" in response_text
+    assert f"≈ <code>{expected_amount}</code> BNB" in response_text
+    assert f"<code>≈{expected_amount} BNB</code>" not in response_text
 
 
 def test_format_fiat_to_crypto_response_preserves_nonzero_amount() -> None:
@@ -75,5 +76,5 @@ def test_format_fiat_to_crypto_response_preserves_nonzero_amount() -> None:
     response_text = format_fiat_to_crypto_response(conversion, language="en")
 
     assert "<code>0.1$ BTC:</code>" in response_text
-    assert "<code>≈0.000000001 BTC</code>" in response_text
-    assert "<code>≈0 BTC</code>" not in response_text
+    assert "≈ <code>0.000000001</code> BTC" in response_text
+    assert "≈ <code>0</code> BTC" not in response_text
