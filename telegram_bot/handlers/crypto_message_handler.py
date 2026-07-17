@@ -20,7 +20,11 @@ from crypto_calculator.crypto_calculator import (
     ZeroCryptoAmountError,
     calculate_crypto_expression,
 )
-from crypto_converter.coin_ticker_resolver import BLOCKED_TICKERS, resolve_coin
+from crypto_converter.coin_ticker_resolver import (
+    BLOCKED_TICKERS,
+    FIAT_TICKERS,
+    resolve_coin,
+)
 from crypto_converter.crypto_amount_parser import (
     ResolvedCryptoAmount,
     contains_only_resolved_crypto_amounts,
@@ -603,6 +607,69 @@ async def _send_or_update_fiat_to_crypto_minimum_error(
         LOGGER.info("Fiat to crypto minimum reply updated | %s", metadata_text)
 
 
+async def _send_or_update_fiat_to_crypto_target_error(
+    message: Message,
+    context: ContextTypes.DEFAULT_TYPE,
+    chat_id: int,
+    metadata_text: str,
+    language: str = DEFAULT_LANGUAGE,
+) -> None:
+    source_message_id = message.message_id
+    error_message = get_message(
+        "fiat_to_crypto_target_must_be_crypto",
+        language=language,
+    )
+    response_signature = (error_message, ())
+    related_reply_message_id = get_related_reply_message_id(
+        context.bot_data,
+        CRYPTO_MESSAGE_FEATURE,
+        chat_id,
+        source_message_id,
+    )
+
+    if related_reply_message_id is None:
+        reply_message = await message.reply_text(
+            text=error_message,
+            do_quote=True,
+        )
+        remember_related_reply_message_id(
+            context.bot_data,
+            CRYPTO_MESSAGE_FEATURE,
+            chat_id,
+            source_message_id,
+            reply_message.message_id,
+        )
+        remember_message_signature(
+            context.bot_data,
+            CRYPTO_RESPONSE_FEATURE,
+            chat_id,
+            source_message_id,
+            response_signature,
+        )
+        LOGGER.info("Fiat to crypto target reply sent | %s", metadata_text)
+    elif not is_message_signature_unchanged(
+        context.bot_data,
+        CRYPTO_RESPONSE_FEATURE,
+        chat_id,
+        source_message_id,
+        response_signature,
+    ):
+        await context.bot.edit_message_text(
+            chat_id=chat_id,
+            message_id=related_reply_message_id,
+            text=error_message,
+            reply_markup=InlineKeyboardMarkup([]),
+        )
+        remember_message_signature(
+            context.bot_data,
+            CRYPTO_RESPONSE_FEATURE,
+            chat_id,
+            source_message_id,
+            response_signature,
+        )
+        LOGGER.info("Fiat to crypto target reply updated | %s", metadata_text)
+
+
 async def handle_crypto_message(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
@@ -773,6 +840,62 @@ async def handle_crypto_message(
                     resolve_coin,
                     fiat_to_crypto_request.ticker,
                 )
+
+                if (
+                    resolved_fiat_to_crypto_coin is not None
+                    and resolved_fiat_to_crypto_coin.ticker in FIAT_TICKERS
+                ):
+                    user = update.effective_user
+                    language = resolve_context_language(
+                        chat.id,
+                        chat.type,
+                        user.id if user is not None else None,
+                        user.language_code if user is not None else None,
+                    )
+                    target_signature = (
+                        language,
+                        (
+                            "fiat_to_crypto_target_must_be_crypto",
+                            fiat_to_crypto_request.usd_amount,
+                            resolved_fiat_to_crypto_coin.ticker,
+                        ),
+                    )
+
+                    if is_message_signature_unchanged(
+                        context.bot_data,
+                        CRYPTO_MESSAGE_FEATURE,
+                        chat.id,
+                        message.message_id,
+                        target_signature,
+                    ):
+                        return
+
+                    metadata_text = format_log_metadata(
+                        get_update_metadata(update)
+                    )
+                    LOGGER.info(
+                        "Fiat to crypto target is not crypto: amount=%s, "
+                        "ticker=%s | %s",
+                        fiat_to_crypto_request.usd_amount,
+                        resolved_fiat_to_crypto_coin.ticker,
+                        metadata_text,
+                    )
+                    await _send_or_update_fiat_to_crypto_target_error(
+                        message,
+                        context,
+                        chat.id,
+                        metadata_text,
+                        language,
+                    )
+                    remember_message_signature(
+                        context.bot_data,
+                        CRYPTO_MESSAGE_FEATURE,
+                        chat.id,
+                        message.message_id,
+                        target_signature,
+                    )
+                    return
+
                 resolved_crypto_amounts = []
             else:
                 resolved_crypto_amounts = await asyncio.to_thread(
