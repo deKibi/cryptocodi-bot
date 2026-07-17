@@ -15,12 +15,14 @@ from crypto_converter.fiat_to_crypto_parser import (
 @pytest.mark.parametrize(
     ("text", "expected_amount", "expected_ticker"),
     [
-        ("10$ в BNB", Decimal("10"), "BNB"),
-        ("10.5$ в bnb", Decimal("10.5"), "BNB"),
-        ("10,5$ в BNB", Decimal("10.5"), "BNB"),
-        ("10$ в $BNB", Decimal("10"), "BNB"),
-        ("10$ В bNb", Decimal("10"), "BNB"),
-        ("10$ в USDT", Decimal("10"), "USDT"),
+        ("10$ BNB", Decimal("10"), "BNB"),
+        ("$10 BNB", Decimal("10"), "BNB"),
+        ("10.5$ bnb", Decimal("10.5"), "BNB"),
+        ("$10.5 $BNB", Decimal("10.5"), "BNB"),
+        ("10,5$ BNB", Decimal("10.5"), "BNB"),
+        ("10$ $BNB", Decimal("10"), "BNB"),
+        ("10$ bNb", Decimal("10"), "BNB"),
+        ("10$ USDT", Decimal("10"), "USDT"),
     ],
 )
 def test_parse_fiat_to_crypto_conversion(
@@ -39,15 +41,19 @@ def test_parse_fiat_to_crypto_conversion(
 @pytest.mark.parametrize(
     "text",
     [
-        "порахуй 10$ в BNB",
-        "10$ в BNB будь ласка",
-        "10 $ в BNB",
-        "10$ BNB",
-        "10 usd в BNB",
-        "10$ в USD",
+        "10$ в BNB",
+        "порахуй 10$ BNB",
+        "10$ BNB будь ласка",
+        "10 $ BNB",
+        "$ 10 BNB",
+        "10$BNB",
+        "$10BNB",
+        "10 usd BNB",
+        "10$ USD",
         "0$ в BNB",
-        "-10$ в BNB",
-        "10$ в",
+        "0$ BNB",
+        "-10$ BNB",
+        "10$",
     ],
 )
 def test_ignore_invalid_fiat_to_crypto_conversion(text: str) -> None:

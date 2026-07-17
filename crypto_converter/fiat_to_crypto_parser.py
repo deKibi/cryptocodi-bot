@@ -15,8 +15,12 @@ from common.compact_number_normalizer import (
 
 # Fiat to crypto conversion pattern
 FIAT_TO_CRYPTO_PATTERN: Final[re.Pattern[str]] = re.compile(
-    rf"\s*(?P<usd_amount>{NUMBER_LITERAL_REGEX})\$"
-    r"\s+в\s+\$?(?P<ticker>[A-Za-z]{1,20})\s*",
+    rf"\s*(?:"
+    rf"(?P<prefix_dollar>\$(?P<prefix_amount>{NUMBER_LITERAL_REGEX}))"
+    rf"|"
+    rf"(?P<suffix_amount>{NUMBER_LITERAL_REGEX})\$"
+    rf")"
+    r"\s+\$?(?P<ticker>[A-Za-z]{1,20})\s*",
     flags=re.IGNORECASE,
 )
 BLOCKED_FIAT_TO_CRYPTO_TARGETS: Final[frozenset[str]] = frozenset({"USD"})
@@ -43,8 +47,12 @@ def parse_fiat_to_crypto_conversion(
     if match is None:
         return None
 
+    matched_amount = (
+        match.group("prefix_amount")
+        or match.group("suffix_amount")
+    )
     usd_amount = Decimal(
-        normalize_number_separators(match.group("usd_amount"))
+        normalize_number_separators(matched_amount)
     )
 
     if usd_amount <= 0:
