@@ -21,6 +21,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
                 "• знаходити суми криптовалют і базових фіатних валют "
                 "(USD, EUR, CAD, PLN, RUB, UAH) та приблизно переводити їх у "
                 "USD та UAH",
+                "• переводити суми в доларах у криптовалюту",
                 "• показувати зміну курсу за 24 години та відкривати "
                 "графіки монет",
                 "• обчислювати прості математичні й криптовалютні вирази",
@@ -39,6 +40,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
                 "<code>10:00 KYIV</code>",
                 "<code>старт 10:00 UTC, фініш 12:00 CET</code>",
                 "<code>0.3 BNB</code>",
+                "<code>10$ BNB</code>",
                 "<code>25k USDT</code>",
                 "<code>1m BNB</code>",
                 "<code>1 bitcoin</code>",
@@ -75,6 +77,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
                 "• find cryptocurrency and basic fiat amounts "
                 "(USD, EUR, CAD, PLN, RUB, UAH) and approximately convert them "
                 "to USD and UAH",
+                "• convert USD amounts to cryptocurrency amounts",
                 "• show 24-hour price changes and open coin charts",
                 "• calculate simple mathematical and cryptocurrency "
                 "expressions",
@@ -92,6 +95,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
                 "<code>10:00 KYIV</code>",
                 "<code>start 10:00 UTC, finish 12:00 CET</code>",
                 "<code>0.3 BNB</code>",
+                "<code>10$ BNB</code>",
                 "<code>25k USDT</code>",
                 "<code>1m BNB</code>",
                 "<code>1 bitcoin</code>",
@@ -129,6 +133,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
                 "• находить суммы криптовалют и базовых фиатных валют "
                 "(USD, EUR, CAD, PLN, RUB, UAH) и приблизительно переводить их "
                 "в USD и UAH",
+                "• переводить суммы в долларах в криптовалюту",
                 "• показывать изменение курса за 24 часа и открывать "
                 "графики монет",
                 "• вычислять простые математические и криптовалютные "
@@ -148,6 +153,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
                 "<code>10:00 KYIV</code>",
                 "<code>старт 10:00 UTC, финиш 12:00 CET</code>",
                 "<code>0.3 BNB</code>",
+                "<code>10$ BNB</code>",
                 "<code>25k USDT</code>",
                 "<code>1m BNB</code>",
                 "<code>1 bitcoin</code>",
