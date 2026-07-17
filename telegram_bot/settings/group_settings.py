@@ -34,6 +34,8 @@ class GroupSettings:
     time_converter_enabled: bool = True
     max_crypto_pairs_per_message: int = MAX_CRYPTO_PAIRS_PER_MESSAGE
     max_time_matches_per_message: int = MAX_TIME_MATCHES_PER_MESSAGE
+    max_crypto_pairs_per_message_override: Optional[int] = None
+    max_time_matches_per_message_override: Optional[int] = None
 
 
 GroupSettingsCache = OrderedDict[int, GroupSettings]
@@ -59,29 +61,100 @@ class GroupSettingsStorage:
         self._database_path.parent.mkdir(parents=True, exist_ok=True)
 
         with closing(self._connect()) as connection:
-            connection.execute(
-                """
-                CREATE TABLE IF NOT EXISTS group_feature_settings (
-                    chat_id INTEGER PRIMARY KEY,
-                    crypto_converter_enabled INTEGER NOT NULL CHECK (
-                        crypto_converter_enabled IN (0, 1)
-                    ),
-                    calculator_enabled INTEGER NOT NULL CHECK (
-                        calculator_enabled IN (0, 1)
-                    ),
-                    time_converter_enabled INTEGER NOT NULL CHECK (
-                        time_converter_enabled IN (0, 1)
-                    ),
-                    max_crypto_pairs_per_message INTEGER NOT NULL CHECK (
-                        max_crypto_pairs_per_message IN (1, 3, 5)
-                    ),
-                    max_time_matches_per_message INTEGER NOT NULL CHECK (
-                        max_time_matches_per_message IN (1, 3, 5)
-                    )
-                )
-                """
-            )
+            self._ensure_table_schema(connection)
             connection.commit()
+
+    def _create_table(self, connection: sqlite3.Connection) -> None:
+        connection.execute(
+            """
+            CREATE TABLE group_feature_settings (
+                chat_id INTEGER PRIMARY KEY,
+                crypto_converter_enabled INTEGER NOT NULL CHECK (
+                    crypto_converter_enabled IN (0, 1)
+                ),
+                calculator_enabled INTEGER NOT NULL CHECK (
+                    calculator_enabled IN (0, 1)
+                ),
+                time_converter_enabled INTEGER NOT NULL CHECK (
+                    time_converter_enabled IN (0, 1)
+                ),
+                max_crypto_pairs_per_message INTEGER CHECK (
+                    max_crypto_pairs_per_message IS NULL
+                    OR max_crypto_pairs_per_message IN (1, 3, 5)
+                ),
+                max_time_matches_per_message INTEGER CHECK (
+                    max_time_matches_per_message IS NULL
+                    OR max_time_matches_per_message IN (1, 3, 5)
+                )
+            )
+            """
+        )
+
+    def _ensure_table_schema(self, connection: sqlite3.Connection) -> None:
+        table_exists = connection.execute(
+            """
+            SELECT 1
+            FROM sqlite_master
+            WHERE type = 'table'
+              AND name = 'group_feature_settings'
+            """
+        ).fetchone()
+
+        if table_exists is None:
+            self._create_table(connection)
+            return
+
+        if self._requires_nullable_limit_migration(connection):
+            self._migrate_to_nullable_limit_overrides(connection)
+
+    def _requires_nullable_limit_migration(
+        self,
+        connection: sqlite3.Connection,
+    ) -> bool:
+        columns = {
+            str(row[1]): int(row[3])
+            for row in connection.execute(
+                "PRAGMA table_info(group_feature_settings)"
+            ).fetchall()
+        }
+
+        return (
+            columns.get("max_crypto_pairs_per_message") == 1
+            or columns.get("max_time_matches_per_message") == 1
+        )
+
+    def _migrate_to_nullable_limit_overrides(
+        self,
+        connection: sqlite3.Connection,
+    ) -> None:
+        connection.execute(
+            """
+            ALTER TABLE group_feature_settings
+            RENAME TO group_feature_settings_old
+            """
+        )
+        self._create_table(connection)
+        connection.execute(
+            """
+            INSERT INTO group_feature_settings (
+                chat_id,
+                crypto_converter_enabled,
+                calculator_enabled,
+                time_converter_enabled,
+                max_crypto_pairs_per_message,
+                max_time_matches_per_message
+            )
+            SELECT
+                chat_id,
+                crypto_converter_enabled,
+                calculator_enabled,
+                time_converter_enabled,
+                max_crypto_pairs_per_message,
+                max_time_matches_per_message
+            FROM group_feature_settings_old
+            """
+        )
+        connection.execute("DROP TABLE group_feature_settings_old")
 
     def get_settings(self, chat_id: int) -> Optional[GroupSettings]:
         """Return saved group settings, if present."""
@@ -103,12 +176,27 @@ class GroupSettingsStorage:
         if row is None:
             return None
 
+        crypto_limit_override = (
+            int(row[3]) if row[3] is not None else None
+        )
+        time_limit_override = int(row[4]) if row[4] is not None else None
+
         return GroupSettings(
             crypto_converter_enabled=bool(row[0]),
             calculator_enabled=bool(row[1]),
             time_converter_enabled=bool(row[2]),
-            max_crypto_pairs_per_message=int(row[3]),
-            max_time_matches_per_message=int(row[4]),
+            max_crypto_pairs_per_message=(
+                crypto_limit_override
+                if crypto_limit_override is not None
+                else MAX_CRYPTO_PAIRS_PER_MESSAGE
+            ),
+            max_time_matches_per_message=(
+                time_limit_override
+                if time_limit_override is not None
+                else MAX_TIME_MATCHES_PER_MESSAGE
+            ),
+            max_crypto_pairs_per_message_override=crypto_limit_override,
+            max_time_matches_per_message_override=time_limit_override,
         )
 
     def save_settings(
@@ -148,8 +236,8 @@ class GroupSettingsStorage:
                     int(settings.crypto_converter_enabled),
                     int(settings.calculator_enabled),
                     int(settings.time_converter_enabled),
-                    settings.max_crypto_pairs_per_message,
-                    settings.max_time_matches_per_message,
+                    settings.max_crypto_pairs_per_message_override,
+                    settings.max_time_matches_per_message_override,
                 ),
             )
             connection.commit()
@@ -160,10 +248,19 @@ _group_settings_cache: GroupSettingsCache = OrderedDict()
 
 
 def _validate_settings(settings: GroupSettings) -> None:
-    if settings.max_crypto_pairs_per_message not in ALLOWED_MESSAGE_LIMITS:
+    crypto_limit_override = settings.max_crypto_pairs_per_message_override
+    time_limit_override = settings.max_time_matches_per_message_override
+
+    if (
+        crypto_limit_override is not None
+        and crypto_limit_override not in ALLOWED_MESSAGE_LIMITS
+    ):
         raise ValueError("Unsupported crypto pairs limit")
 
-    if settings.max_time_matches_per_message not in ALLOWED_MESSAGE_LIMITS:
+    if (
+        time_limit_override is not None
+        and time_limit_override not in ALLOWED_MESSAGE_LIMITS
+    ):
         raise ValueError("Unsupported time matches limit")
 
 
@@ -186,7 +283,10 @@ def _remember_group_settings(chat_id: int, settings: GroupSettings) -> None:
 
 def get_default_group_settings() -> GroupSettings:
     """Return default settings matching current bot behavior."""
-    return GroupSettings()
+    return GroupSettings(
+        max_crypto_pairs_per_message=MAX_CRYPTO_PAIRS_PER_MESSAGE,
+        max_time_matches_per_message=MAX_TIME_MATCHES_PER_MESSAGE,
+    )
 
 
 def get_group_settings(chat_id: int) -> GroupSettings:
@@ -228,7 +328,7 @@ def save_group_settings(chat_id: int, settings: GroupSettings) -> bool:
     """Persist settings for a group chat."""
     try:
         _get_group_settings_storage().save_settings(chat_id, settings)
-    except (OSError, sqlite3.Error):
+    except (OSError, sqlite3.Error, ValueError):
         LOGGER.exception(
             "Failed to save group settings | chat_id=%s",
             chat_id,
@@ -242,7 +342,7 @@ def save_group_settings(chat_id: int, settings: GroupSettings) -> bool:
 def update_group_setting(
     chat_id: int,
     setting_name: str,
-    value: bool | int,
+    value: bool | int | None,
 ) -> Optional[GroupSettings]:
     """Update one group setting and return the effective saved settings."""
     current_settings = get_group_settings(chat_id)
@@ -258,6 +358,12 @@ def update_group_setting(
             max_time_matches_per_message=(
                 current_settings.max_time_matches_per_message
             ),
+            max_crypto_pairs_per_message_override=(
+                current_settings.max_crypto_pairs_per_message_override
+            ),
+            max_time_matches_per_message_override=(
+                current_settings.max_time_matches_per_message_override
+            ),
         )
     elif setting_name == "calculator_enabled":
         updated_settings = GroupSettings(
@@ -269,6 +375,12 @@ def update_group_setting(
             ),
             max_time_matches_per_message=(
                 current_settings.max_time_matches_per_message
+            ),
+            max_crypto_pairs_per_message_override=(
+                current_settings.max_crypto_pairs_per_message_override
+            ),
+            max_time_matches_per_message_override=(
+                current_settings.max_time_matches_per_message_override
             ),
         )
     elif setting_name == "time_converter_enabled":
@@ -282,18 +394,34 @@ def update_group_setting(
             max_time_matches_per_message=(
                 current_settings.max_time_matches_per_message
             ),
+            max_crypto_pairs_per_message_override=(
+                current_settings.max_crypto_pairs_per_message_override
+            ),
+            max_time_matches_per_message_override=(
+                current_settings.max_time_matches_per_message_override
+            ),
         )
     elif setting_name == "max_crypto_pairs_per_message":
+        crypto_limit_override = int(value) if value is not None else None
         updated_settings = GroupSettings(
             crypto_converter_enabled=current_settings.crypto_converter_enabled,
             calculator_enabled=current_settings.calculator_enabled,
             time_converter_enabled=current_settings.time_converter_enabled,
-            max_crypto_pairs_per_message=int(value),
+            max_crypto_pairs_per_message=(
+                crypto_limit_override
+                if crypto_limit_override is not None
+                else MAX_CRYPTO_PAIRS_PER_MESSAGE
+            ),
             max_time_matches_per_message=(
                 current_settings.max_time_matches_per_message
             ),
+            max_crypto_pairs_per_message_override=crypto_limit_override,
+            max_time_matches_per_message_override=(
+                current_settings.max_time_matches_per_message_override
+            ),
         )
     elif setting_name == "max_time_matches_per_message":
+        time_limit_override = int(value) if value is not None else None
         updated_settings = GroupSettings(
             crypto_converter_enabled=current_settings.crypto_converter_enabled,
             calculator_enabled=current_settings.calculator_enabled,
@@ -301,7 +429,15 @@ def update_group_setting(
             max_crypto_pairs_per_message=(
                 current_settings.max_crypto_pairs_per_message
             ),
-            max_time_matches_per_message=int(value),
+            max_time_matches_per_message=(
+                time_limit_override
+                if time_limit_override is not None
+                else MAX_TIME_MATCHES_PER_MESSAGE
+            ),
+            max_crypto_pairs_per_message_override=(
+                current_settings.max_crypto_pairs_per_message_override
+            ),
+            max_time_matches_per_message_override=time_limit_override,
         )
     else:
         return None

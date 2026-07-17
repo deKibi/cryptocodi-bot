@@ -7,6 +7,7 @@ from typing import Final
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 # Custom Modules
+from config import MAX_CRYPTO_PAIRS_PER_MESSAGE, MAX_TIME_MATCHES_PER_MESSAGE
 from telegram_bot.localization.messages import get_message
 from telegram_bot.settings.group_settings import (
     ALLOWED_MESSAGE_LIMITS,
@@ -20,6 +21,7 @@ SETTINGS_BACK_CALLBACK_PREFIX: Final[str] = "settings_back"
 SETTINGS_TOGGLE_CALLBACK_PREFIX: Final[str] = "settings_toggle"
 SETTINGS_LIMIT_MENU_CALLBACK_PREFIX: Final[str] = "settings_limit"
 SETTINGS_SET_LIMIT_CALLBACK_PREFIX: Final[str] = "settings_set_limit"
+SETTINGS_DEFAULT_LIMIT_CALLBACK_PREFIX: Final[str] = "settings_default_limit"
 DELETE_SETTINGS_CALLBACK_PREFIX: Final[str] = "delete_settings"
 BOT_INFO_SETTINGS_CONTEXT: Final[str] = "bot_info"
 
@@ -150,6 +152,11 @@ def build_settings_limit_keyboard(
     """Build a strict 1/3/5 limit selection keyboard."""
     buttons = []
     context = _format_bot_info_context(requester_user_id)
+    default_limit = (
+        MAX_CRYPTO_PAIRS_PER_MESSAGE
+        if limit_type == "crypto"
+        else MAX_TIME_MATCHES_PER_MESSAGE
+    )
 
     for limit in ALLOWED_MESSAGE_LIMITS:
         label = str(limit)
@@ -170,6 +177,15 @@ def build_settings_limit_keyboard(
     return InlineKeyboardMarkup(
         [
             buttons,
+            [
+                InlineKeyboardButton(
+                    text=f"Default ({default_limit})",
+                    callback_data=(
+                        f"{SETTINGS_DEFAULT_LIMIT_CALLBACK_PREFIX}:"
+                        f"{chat_id}:{limit_type}{context}"
+                    ),
+                )
+            ],
             [
                 InlineKeyboardButton(
                     text=get_message("language_back_button"),

@@ -16,6 +16,7 @@ from telegram_bot.keyboards.settings_keyboard import (
     BOT_INFO_SETTINGS_CONTEXT,
     DELETE_SETTINGS_CALLBACK_PREFIX,
     SETTINGS_BACK_CALLBACK_PREFIX,
+    SETTINGS_DEFAULT_LIMIT_CALLBACK_PREFIX,
     SETTINGS_HOME_CALLBACK_PREFIX,
     SETTINGS_LIMIT_MENU_CALLBACK_PREFIX,
     SETTINGS_SET_LIMIT_CALLBACK_PREFIX,
@@ -75,6 +76,11 @@ SETTINGS_SET_LIMIT_CALLBACK_PATTERN: Final[str] = (
     rf"{SETTINGS_CHAT_ID_PATTERN}:(?:crypto|time):(?:1|3|5)"
     rf"{SETTINGS_BOT_INFO_CONTEXT_PATTERN}$"
 )
+SETTINGS_DEFAULT_LIMIT_CALLBACK_PATTERN: Final[str] = (
+    rf"^{SETTINGS_DEFAULT_LIMIT_CALLBACK_PREFIX}:"
+    rf"{SETTINGS_CHAT_ID_PATTERN}:(?:crypto|time)"
+    rf"{SETTINGS_BOT_INFO_CONTEXT_PATTERN}$"
+)
 DELETE_SETTINGS_CALLBACK_PATTERN: Final[str] = (
     rf"^{DELETE_SETTINGS_CALLBACK_PREFIX}:{SETTINGS_CHAT_ID_PATTERN}$"
 )
@@ -108,6 +114,13 @@ SETTINGS_SET_LIMIT_DATA_PATTERN: Final[re.Pattern[str]] = re.compile(
     r"(?P<chat_id>-?[1-9][0-9]*):"
     r"(?P<limit_type>crypto|time):"
     r"(?P<limit>1|3|5)"
+    rf"(?::{BOT_INFO_SETTINGS_CONTEXT}:"
+    r"(?P<requester_user_id>[1-9][0-9]*))?"
+)
+SETTINGS_DEFAULT_LIMIT_DATA_PATTERN: Final[re.Pattern[str]] = re.compile(
+    rf"{SETTINGS_DEFAULT_LIMIT_CALLBACK_PREFIX}:"
+    r"(?P<chat_id>-?[1-9][0-9]*):"
+    r"(?P<limit_type>crypto|time)"
     rf"(?::{BOT_INFO_SETTINGS_CONTEXT}:"
     r"(?P<requester_user_id>[1-9][0-9]*))?"
 )
@@ -532,6 +545,55 @@ async def handle_settings_set_limit_callback(
             else "max_time_matches_per_message"
         ),
         limit,
+    )
+    await callback_query.answer()
+
+    if isinstance(callback_query.message, Message):
+        await _edit_to_settings_home(
+            callback_query.message,
+            chat_id,
+            language,
+            requester_user_id=requester_user_id,
+        )
+
+
+async def handle_settings_default_limit_callback(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+) -> None:
+    """Reset one message limit to the configured default."""
+    callback_query = update.callback_query
+
+    if callback_query is None or callback_query.data is None:
+        return
+
+    match = SETTINGS_DEFAULT_LIMIT_DATA_PATTERN.fullmatch(
+        callback_query.data
+    )
+
+    if match is None:
+        await callback_query.answer()
+        return
+
+    chat_id = int(match.group("chat_id"))
+    limit_type = match.group("limit_type")
+    requester_user_id = _get_bot_info_requester_user_id(match)
+    language = _resolve_settings_language(update)
+
+    if not await _can_manage_settings(update, context, chat_id):
+        await callback_query.answer(
+            text=get_message("settings_admin_only", language=language),
+        )
+        return
+
+    update_group_setting(
+        chat_id,
+        (
+            "max_crypto_pairs_per_message"
+            if limit_type == "crypto"
+            else "max_time_matches_per_message"
+        ),
+        None,
     )
     await callback_query.answer()
 

@@ -5,6 +5,7 @@ import re
 
 # Custom Modules
 from telegram_bot.handlers.settings_command_handler import (
+    SETTINGS_DEFAULT_LIMIT_CALLBACK_PATTERN,
     SETTINGS_HOME_CALLBACK_PATTERN,
     SETTINGS_LIMIT_MENU_CALLBACK_PATTERN,
     SETTINGS_SET_LIMIT_CALLBACK_PATTERN,
@@ -12,7 +13,10 @@ from telegram_bot.handlers.settings_command_handler import (
     format_settings_home,
 )
 from telegram_bot.keyboards.language_keyboard import build_change_language_keyboard
-from telegram_bot.keyboards.settings_keyboard import build_settings_home_keyboard
+from telegram_bot.keyboards.settings_keyboard import (
+    build_settings_home_keyboard,
+    build_settings_limit_keyboard,
+)
 from telegram_bot.localization.language_preferences import CHAT_LANGUAGE_SCOPE
 from telegram_bot.settings.group_settings import GroupSettings
 
@@ -98,3 +102,25 @@ def test_settings_patterns_accept_bot_info_context() -> None:
         SETTINGS_SET_LIMIT_CALLBACK_PATTERN,
         "settings_set_limit:-100:crypto:3:bot_info:456",
     )
+    assert re.fullmatch(
+        SETTINGS_DEFAULT_LIMIT_CALLBACK_PATTERN,
+        "settings_default_limit:-100:crypto:bot_info:456",
+    )
+
+
+def test_settings_limit_keyboard_shows_default_limit_button() -> None:
+    keyboard = build_settings_limit_keyboard(
+        -100,
+        "crypto",
+        1,
+        requester_user_id=456,
+    )
+
+    rows = keyboard.inline_keyboard
+
+    assert rows[0][0].text == "✅ 1"
+    assert rows[1][0].text.startswith("Default (")
+    assert rows[1][0].callback_data == (
+        "settings_default_limit:-100:crypto:bot_info:456"
+    )
+    assert rows[2][0].text == "Back"
