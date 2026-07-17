@@ -7,7 +7,10 @@ from typing import Final, Optional
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 # Custom Modules
-from telegram_bot.keyboards.settings_keyboard import SETTINGS_HOME_CALLBACK_PREFIX
+from telegram_bot.keyboards.settings_keyboard import (
+    BOT_INFO_SETTINGS_CONTEXT,
+    SETTINGS_HOME_CALLBACK_PREFIX,
+)
 from telegram_bot.localization.language_preferences import CHAT_LANGUAGE_SCOPE
 from telegram_bot.localization.messages import get_message
 
@@ -63,7 +66,9 @@ def build_change_language_keyboard(
                 InlineKeyboardButton(
                     text=get_message("settings_button"),
                     callback_data=(
-                        f"{SETTINGS_HOME_CALLBACK_PREFIX}:{scope_id}"
+                        f"{SETTINGS_HOME_CALLBACK_PREFIX}:"
+                        f"{scope_id}:{BOT_INFO_SETTINGS_CONTEXT}:"
+                        f"{requester_user_id}"
                     ),
                 ),
             ]

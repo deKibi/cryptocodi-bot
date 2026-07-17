@@ -67,11 +67,13 @@ from telegram_bot.handlers.language_callback_handler import (
 )
 from telegram_bot.handlers.settings_command_handler import (
     DELETE_SETTINGS_CALLBACK_PATTERN,
+    SETTINGS_BACK_CALLBACK_PATTERN,
     SETTINGS_HOME_CALLBACK_PATTERN,
     SETTINGS_LIMIT_MENU_CALLBACK_PATTERN,
     SETTINGS_SET_LIMIT_CALLBACK_PATTERN,
     SETTINGS_TOGGLE_CALLBACK_PATTERN,
     handle_delete_settings_callback,
+    handle_settings_back_callback,
     handle_settings_command,
     handle_settings_home_callback,
     handle_settings_limit_menu_callback,
@@ -380,6 +382,12 @@ def create_application() -> Application:
         CallbackQueryHandler(
             handle_settings_home_callback,
             pattern=SETTINGS_HOME_CALLBACK_PATTERN,
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            handle_settings_back_callback,
+            pattern=SETTINGS_BACK_CALLBACK_PATTERN,
         )
     )
     application.add_handler(

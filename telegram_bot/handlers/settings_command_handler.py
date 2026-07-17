@@ -13,7 +13,9 @@ from telegram.ext import ContextTypes
 
 # Custom Modules
 from telegram_bot.keyboards.settings_keyboard import (
+    BOT_INFO_SETTINGS_CONTEXT,
     DELETE_SETTINGS_CALLBACK_PREFIX,
+    SETTINGS_BACK_CALLBACK_PREFIX,
     SETTINGS_HOME_CALLBACK_PREFIX,
     SETTINGS_LIMIT_MENU_CALLBACK_PREFIX,
     SETTINGS_SET_LIMIT_CALLBACK_PREFIX,
@@ -21,7 +23,9 @@ from telegram_bot.keyboards.settings_keyboard import (
     build_settings_home_keyboard,
     build_settings_limit_keyboard,
 )
+from telegram_bot.keyboards.language_keyboard import build_change_language_keyboard
 from telegram_bot.localization.language_preferences import (
+    CHAT_LANGUAGE_SCOPE,
     DEFAULT_LANGUAGE,
     GROUP_CHAT_TYPES,
     resolve_context_language,
@@ -41,20 +45,32 @@ SETTINGS_MANAGER_STATUSES: Final[frozenset[str]] = frozenset(
     {ChatMemberStatus.OWNER, ChatMemberStatus.ADMINISTRATOR}
 )
 SETTINGS_CHAT_ID_PATTERN: Final[str] = r"-?[1-9][0-9]*"
+SETTINGS_REQUESTER_ID_PATTERN: Final[str] = r"[1-9][0-9]*"
+SETTINGS_BOT_INFO_CONTEXT_PATTERN: Final[str] = (
+    rf"(?::{BOT_INFO_SETTINGS_CONTEXT}:{SETTINGS_REQUESTER_ID_PATTERN})?"
+)
 SETTINGS_HOME_CALLBACK_PATTERN: Final[str] = (
-    rf"^{SETTINGS_HOME_CALLBACK_PREFIX}:{SETTINGS_CHAT_ID_PATTERN}$"
+    rf"^{SETTINGS_HOME_CALLBACK_PREFIX}:"
+    rf"{SETTINGS_CHAT_ID_PATTERN}{SETTINGS_BOT_INFO_CONTEXT_PATTERN}$"
+)
+SETTINGS_BACK_CALLBACK_PATTERN: Final[str] = (
+    rf"^{SETTINGS_BACK_CALLBACK_PREFIX}:"
+    rf"{SETTINGS_CHAT_ID_PATTERN}:{SETTINGS_REQUESTER_ID_PATTERN}$"
 )
 SETTINGS_TOGGLE_CALLBACK_PATTERN: Final[str] = (
     rf"^{SETTINGS_TOGGLE_CALLBACK_PREFIX}:"
-    rf"{SETTINGS_CHAT_ID_PATTERN}:(?:crypto|calculator|time)$"
+    rf"{SETTINGS_CHAT_ID_PATTERN}:(?:crypto|calculator|time)"
+    rf"{SETTINGS_BOT_INFO_CONTEXT_PATTERN}$"
 )
 SETTINGS_LIMIT_MENU_CALLBACK_PATTERN: Final[str] = (
     rf"^{SETTINGS_LIMIT_MENU_CALLBACK_PREFIX}:"
-    rf"{SETTINGS_CHAT_ID_PATTERN}:(?:crypto|time)$"
+    rf"{SETTINGS_CHAT_ID_PATTERN}:(?:crypto|time)"
+    rf"{SETTINGS_BOT_INFO_CONTEXT_PATTERN}$"
 )
 SETTINGS_SET_LIMIT_CALLBACK_PATTERN: Final[str] = (
     rf"^{SETTINGS_SET_LIMIT_CALLBACK_PREFIX}:"
-    rf"{SETTINGS_CHAT_ID_PATTERN}:(?:crypto|time):(?:1|3|5)$"
+    rf"{SETTINGS_CHAT_ID_PATTERN}:(?:crypto|time):(?:1|3|5)"
+    rf"{SETTINGS_BOT_INFO_CONTEXT_PATTERN}$"
 )
 DELETE_SETTINGS_CALLBACK_PATTERN: Final[str] = (
     rf"^{DELETE_SETTINGS_CALLBACK_PREFIX}:{SETTINGS_CHAT_ID_PATTERN}$"
@@ -62,22 +78,35 @@ DELETE_SETTINGS_CALLBACK_PATTERN: Final[str] = (
 SETTINGS_HOME_DATA_PATTERN: Final[re.Pattern[str]] = re.compile(
     rf"{SETTINGS_HOME_CALLBACK_PREFIX}:"
     r"(?P<chat_id>-?[1-9][0-9]*)"
+    rf"(?::{BOT_INFO_SETTINGS_CONTEXT}:"
+    r"(?P<requester_user_id>[1-9][0-9]*))?"
+)
+SETTINGS_BACK_DATA_PATTERN: Final[re.Pattern[str]] = re.compile(
+    rf"{SETTINGS_BACK_CALLBACK_PREFIX}:"
+    r"(?P<chat_id>-?[1-9][0-9]*):"
+    r"(?P<requester_user_id>[1-9][0-9]*)"
 )
 SETTINGS_TOGGLE_DATA_PATTERN: Final[re.Pattern[str]] = re.compile(
     rf"{SETTINGS_TOGGLE_CALLBACK_PREFIX}:"
     r"(?P<chat_id>-?[1-9][0-9]*):"
     r"(?P<feature>crypto|calculator|time)"
+    rf"(?::{BOT_INFO_SETTINGS_CONTEXT}:"
+    r"(?P<requester_user_id>[1-9][0-9]*))?"
 )
 SETTINGS_LIMIT_MENU_DATA_PATTERN: Final[re.Pattern[str]] = re.compile(
     rf"{SETTINGS_LIMIT_MENU_CALLBACK_PREFIX}:"
     r"(?P<chat_id>-?[1-9][0-9]*):"
     r"(?P<limit_type>crypto|time)"
+    rf"(?::{BOT_INFO_SETTINGS_CONTEXT}:"
+    r"(?P<requester_user_id>[1-9][0-9]*))?"
 )
 SETTINGS_SET_LIMIT_DATA_PATTERN: Final[re.Pattern[str]] = re.compile(
     rf"{SETTINGS_SET_LIMIT_CALLBACK_PREFIX}:"
     r"(?P<chat_id>-?[1-9][0-9]*):"
     r"(?P<limit_type>crypto|time):"
     r"(?P<limit>1|3|5)"
+    rf"(?::{BOT_INFO_SETTINGS_CONTEXT}:"
+    r"(?P<requester_user_id>[1-9][0-9]*))?"
 )
 DELETE_SETTINGS_DATA_PATTERN: Final[re.Pattern[str]] = re.compile(
     rf"{DELETE_SETTINGS_CALLBACK_PREFIX}:"
@@ -183,16 +212,32 @@ def _get_callback_chat_id(
     return int(match.group("chat_id"))
 
 
+def _get_bot_info_requester_user_id(
+    match: re.Match[str],
+) -> Optional[int]:
+    requester_user_id = match.groupdict().get("requester_user_id")
+
+    if requester_user_id is None:
+        return None
+
+    return int(requester_user_id)
+
+
 async def _edit_to_settings_home(
     message: Message,
     chat_id: int,
     language: str,
+    requester_user_id: Optional[int] = None,
 ) -> None:
     settings = get_group_settings(chat_id)
     await message.edit_text(
         text=format_settings_home(settings, language),
         parse_mode=ParseMode.HTML,
-        reply_markup=build_settings_home_keyboard(chat_id, settings),
+        reply_markup=build_settings_home_keyboard(
+            chat_id,
+            settings,
+            requester_user_id=requester_user_id,
+        ),
     )
 
 
@@ -258,9 +303,16 @@ async def handle_settings_home_callback(
     if callback_query is None:
         return
 
-    chat_id = _get_callback_chat_id(
-        callback_query.data,
-        SETTINGS_HOME_DATA_PATTERN,
+    match = (
+        SETTINGS_HOME_DATA_PATTERN.fullmatch(callback_query.data)
+        if callback_query.data is not None
+        else None
+    )
+    chat_id = int(match.group("chat_id")) if match is not None else None
+    requester_user_id = (
+        _get_bot_info_requester_user_id(match)
+        if match is not None
+        else None
     )
 
     if chat_id is None or not await _can_manage_settings(
@@ -283,6 +335,47 @@ async def handle_settings_home_callback(
             callback_query.message,
             chat_id,
             _resolve_settings_language(update),
+            requester_user_id=requester_user_id,
+        )
+
+
+async def handle_settings_back_callback(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+) -> None:
+    """Return from settings opened inside a bot-information message."""
+    callback_query = update.callback_query
+
+    if callback_query is None or callback_query.data is None:
+        return
+
+    match = SETTINGS_BACK_DATA_PATTERN.fullmatch(callback_query.data)
+
+    if match is None:
+        await callback_query.answer()
+        return
+
+    chat_id = int(match.group("chat_id"))
+    requester_user_id = int(match.group("requester_user_id"))
+    language = _resolve_settings_language(update)
+
+    if not await _can_manage_settings(update, context, chat_id):
+        await callback_query.answer(
+            text=get_message("settings_admin_only", language=language),
+        )
+        return
+
+    await callback_query.answer()
+
+    if isinstance(callback_query.message, Message):
+        await callback_query.message.edit_text(
+            text=get_message("bot_info", language=language),
+            parse_mode=ParseMode.HTML,
+            reply_markup=build_change_language_keyboard(
+                CHAT_LANGUAGE_SCOPE,
+                chat_id,
+                requester_user_id,
+            ),
         )
 
 
@@ -304,6 +397,7 @@ async def handle_settings_toggle_callback(
 
     chat_id = int(match.group("chat_id"))
     feature = match.group("feature")
+    requester_user_id = _get_bot_info_requester_user_id(match)
     language = _resolve_settings_language(update)
 
     if not await _can_manage_settings(update, context, chat_id):
@@ -328,6 +422,7 @@ async def handle_settings_toggle_callback(
             callback_query.message,
             chat_id,
             language,
+            requester_user_id=requester_user_id,
         )
 
 
@@ -349,6 +444,7 @@ async def handle_settings_limit_menu_callback(
 
     chat_id = int(match.group("chat_id"))
     limit_type = match.group("limit_type")
+    requester_user_id = _get_bot_info_requester_user_id(match)
     language = _resolve_settings_language(update)
 
     if not await _can_manage_settings(update, context, chat_id):
@@ -385,6 +481,7 @@ async def handle_settings_limit_menu_callback(
                 chat_id,
                 limit_type,
                 active_limit,
+                requester_user_id=requester_user_id,
             ),
         )
 
@@ -408,6 +505,7 @@ async def handle_settings_set_limit_callback(
     chat_id = int(match.group("chat_id"))
     limit_type = match.group("limit_type")
     limit = int(match.group("limit"))
+    requester_user_id = _get_bot_info_requester_user_id(match)
     language = _resolve_settings_language(update)
 
     if (
@@ -435,6 +533,7 @@ async def handle_settings_set_limit_callback(
             callback_query.message,
             chat_id,
             language,
+            requester_user_id=requester_user_id,
         )
 
 
