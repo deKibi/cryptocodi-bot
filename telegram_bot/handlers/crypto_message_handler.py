@@ -28,6 +28,7 @@ from crypto_converter.crypto_amount_parser import (
 )
 from crypto_converter.fiat_to_crypto_parser import (
     ParsedFiatToCryptoConversion,
+    ParsedLowFiatToCryptoAmount,
     parse_fiat_to_crypto_conversion,
 )
 from crypto_converter.crypto_price_converter import (
@@ -539,6 +540,69 @@ async def _send_or_update_crypto_calculation_error(
         )
 
 
+async def _send_or_update_fiat_to_crypto_minimum_error(
+    message: Message,
+    context: ContextTypes.DEFAULT_TYPE,
+    chat_id: int,
+    metadata_text: str,
+    language: str = DEFAULT_LANGUAGE,
+) -> None:
+    source_message_id = message.message_id
+    error_message = get_message(
+        "fiat_to_crypto_minimum_amount",
+        language=language,
+    )
+    response_signature = (error_message, ())
+    related_reply_message_id = get_related_reply_message_id(
+        context.bot_data,
+        CRYPTO_MESSAGE_FEATURE,
+        chat_id,
+        source_message_id,
+    )
+
+    if related_reply_message_id is None:
+        reply_message = await message.reply_text(
+            text=error_message,
+            do_quote=True,
+        )
+        remember_related_reply_message_id(
+            context.bot_data,
+            CRYPTO_MESSAGE_FEATURE,
+            chat_id,
+            source_message_id,
+            reply_message.message_id,
+        )
+        remember_message_signature(
+            context.bot_data,
+            CRYPTO_RESPONSE_FEATURE,
+            chat_id,
+            source_message_id,
+            response_signature,
+        )
+        LOGGER.info("Fiat to crypto minimum reply sent | %s", metadata_text)
+    elif not is_message_signature_unchanged(
+        context.bot_data,
+        CRYPTO_RESPONSE_FEATURE,
+        chat_id,
+        source_message_id,
+        response_signature,
+    ):
+        await context.bot.edit_message_text(
+            chat_id=chat_id,
+            message_id=related_reply_message_id,
+            text=error_message,
+            reply_markup=InlineKeyboardMarkup([]),
+        )
+        remember_message_signature(
+            context.bot_data,
+            CRYPTO_RESPONSE_FEATURE,
+            chat_id,
+            source_message_id,
+            response_signature,
+        )
+        LOGGER.info("Fiat to crypto minimum reply updated | %s", metadata_text)
+
+
 async def handle_crypto_message(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
@@ -646,11 +710,65 @@ async def handle_crypto_message(
             ]
         else:
             crypto_calculation = None
-            fiat_to_crypto_request = parse_fiat_to_crypto_conversion(
+            parsed_fiat_to_crypto_request = parse_fiat_to_crypto_conversion(
                 message_text,
             )
 
-            if fiat_to_crypto_request is not None:
+            if isinstance(
+                parsed_fiat_to_crypto_request,
+                ParsedLowFiatToCryptoAmount,
+            ):
+                user = update.effective_user
+                language = resolve_context_language(
+                    chat.id,
+                    chat.type,
+                    user.id if user is not None else None,
+                    user.language_code if user is not None else None,
+                )
+                minimum_signature = (
+                    language,
+                    (
+                        "fiat_to_crypto_minimum",
+                        parsed_fiat_to_crypto_request.usd_amount,
+                        parsed_fiat_to_crypto_request.ticker,
+                    ),
+                )
+
+                if is_message_signature_unchanged(
+                    context.bot_data,
+                    CRYPTO_MESSAGE_FEATURE,
+                    chat.id,
+                    message.message_id,
+                    minimum_signature,
+                ):
+                    return
+
+                metadata_text = format_log_metadata(get_update_metadata(update))
+                LOGGER.info(
+                    "Fiat to crypto amount below minimum: amount=%s, "
+                    "ticker=%s | %s",
+                    parsed_fiat_to_crypto_request.usd_amount,
+                    parsed_fiat_to_crypto_request.ticker,
+                    metadata_text,
+                )
+                await _send_or_update_fiat_to_crypto_minimum_error(
+                    message,
+                    context,
+                    chat.id,
+                    metadata_text,
+                    language,
+                )
+                remember_message_signature(
+                    context.bot_data,
+                    CRYPTO_MESSAGE_FEATURE,
+                    chat.id,
+                    message.message_id,
+                    minimum_signature,
+                )
+                return
+
+            if parsed_fiat_to_crypto_request is not None:
+                fiat_to_crypto_request = parsed_fiat_to_crypto_request
                 resolved_fiat_to_crypto_coin = await asyncio.to_thread(
                     resolve_coin,
                     fiat_to_crypto_request.ticker,

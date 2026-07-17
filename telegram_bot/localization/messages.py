@@ -250,6 +250,16 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
             "<code>{crypto_amount} {ticker}</code>"
         ),
     },
+    "fiat_to_crypto_minimum_amount": {
+        "uk": (
+            "Мінімальна сума для конвертації доларів у криптовалюту — $0.10."
+        ),
+        "en": "Minimum USD amount for crypto conversion is $0.10.",
+        "ru": (
+            "Минимальная сумма для конвертации долларов в криптовалюту — "
+            "$0.10."
+        ),
+    },
     "time_response": {
         "uk": (
             "<code>{conversion_blocks}</code>\n\n"

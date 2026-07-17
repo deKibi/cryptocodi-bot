@@ -40,9 +40,18 @@ class ParsedFiatToCryptoConversion:
     matched_text: str
 
 
+@dataclass(frozen=True)
+class ParsedLowFiatToCryptoAmount:
+    """Represent a strict USD to crypto request below the minimum amount."""
+
+    usd_amount: Decimal
+    ticker: str
+    matched_text: str
+
+
 def parse_fiat_to_crypto_conversion(
     message_text: str,
-) -> Optional[ParsedFiatToCryptoConversion]:
+) -> Optional[ParsedFiatToCryptoConversion | ParsedLowFiatToCryptoAmount]:
     """Return a USD to crypto conversion request from a full message."""
     if not isinstance(message_text, str):
         return None
@@ -69,13 +78,17 @@ def parse_fiat_to_crypto_conversion(
             matched_multiplier.lower()
         ]
 
-    if usd_amount < MIN_FIAT_TO_CRYPTO_USD_AMOUNT:
-        return None
-
     ticker = match.group("ticker").upper()
 
     if ticker in BLOCKED_FIAT_TO_CRYPTO_TARGETS:
         return None
+
+    if usd_amount < MIN_FIAT_TO_CRYPTO_USD_AMOUNT:
+        return ParsedLowFiatToCryptoAmount(
+            usd_amount=usd_amount,
+            ticker=ticker,
+            matched_text=message_text.strip(),
+        )
 
     return ParsedFiatToCryptoConversion(
         usd_amount=usd_amount,
