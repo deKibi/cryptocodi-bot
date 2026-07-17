@@ -247,18 +247,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
     "fiat_to_crypto_response": {
         "en": (
             "<code>{usd_amount}$ {ticker}:</code>\n"
-            "≈ <code>{crypto_amount}</code> {ticker}\n\n"
-            "<i>{approximation_note}</i>"
-        ),
-    },
-    "fiat_to_crypto_approximation_note": {
-        "uk": (
-            "* конвертація приблизна (±$0.1) й може мати невелику похибку"
-        ),
-        "en": "* approximate conversion (±$0.1), may differ slightly",
-        "ru": (
-            "* конвертация приблизительная (±$0.1) и может иметь небольшую "
-            "погрешность"
+            "≈ <code>{crypto_amount}</code> {ticker}"
         ),
     },
     "fiat_to_crypto_minimum_amount": {

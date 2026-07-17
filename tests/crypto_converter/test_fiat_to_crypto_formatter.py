@@ -14,7 +14,6 @@ from crypto_converter.crypto_price_converter import (
 from telegram_bot.handlers.crypto_message_handler import (
     format_fiat_to_crypto_response,
 )
-from telegram_bot.localization.messages import get_message
 
 
 def _build_fiat_to_crypto_conversion(
@@ -60,16 +59,10 @@ def test_format_fiat_to_crypto_response_uses_readable_precision(
     )
 
     response_text = format_fiat_to_crypto_response(conversion, language="en")
-    approximation_note = get_message(
-        "fiat_to_crypto_approximation_note",
-        language="en",
-    )
 
     assert "<code>10$ BNB:</code>" in response_text
     assert f"≈ <code>{expected_amount}</code> BNB" in response_text
     assert f"<code>≈{expected_amount} BNB</code>" not in response_text
-    assert f"<i>{approximation_note}</i>" in response_text
-    assert f"<code>{approximation_note}</code>" not in response_text
 
 
 def test_format_fiat_to_crypto_response_preserves_nonzero_amount() -> None:
