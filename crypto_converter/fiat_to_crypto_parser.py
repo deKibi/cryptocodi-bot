@@ -8,6 +8,8 @@ from typing import Final, Optional
 
 # Custom Modules
 from common.compact_number_normalizer import (
+    COMPACT_NUMBER_MULTIPLIERS,
+    COMPACT_NUMBER_SUFFIX_REGEX,
     NUMBER_LITERAL_REGEX,
     normalize_number_separators,
 )
@@ -16,9 +18,11 @@ from common.compact_number_normalizer import (
 # Fiat to crypto conversion pattern
 FIAT_TO_CRYPTO_PATTERN: Final[re.Pattern[str]] = re.compile(
     rf"\s*(?:"
-    rf"(?P<prefix_dollar>\$(?P<prefix_amount>{NUMBER_LITERAL_REGEX}))"
+    rf"(?P<prefix_dollar>\$(?P<prefix_amount>{NUMBER_LITERAL_REGEX})"
+    rf"(?P<prefix_multiplier>{COMPACT_NUMBER_SUFFIX_REGEX})?)"
     rf"|"
-    rf"(?P<suffix_amount>{NUMBER_LITERAL_REGEX})\$"
+    rf"(?P<suffix_amount>{NUMBER_LITERAL_REGEX})"
+    rf"(?P<suffix_multiplier>{COMPACT_NUMBER_SUFFIX_REGEX})?\$"
     rf")"
     r"\s+\$?(?P<ticker>[A-Za-z]{1,20})\s*",
     flags=re.IGNORECASE,
@@ -51,9 +55,18 @@ def parse_fiat_to_crypto_conversion(
         match.group("prefix_amount")
         or match.group("suffix_amount")
     )
+    matched_multiplier = (
+        match.group("prefix_multiplier")
+        or match.group("suffix_multiplier")
+    )
     usd_amount = Decimal(
         normalize_number_separators(matched_amount)
     )
+
+    if matched_multiplier is not None:
+        usd_amount *= COMPACT_NUMBER_MULTIPLIERS[
+            matched_multiplier.lower()
+        ]
 
     if usd_amount <= 0:
         return None
