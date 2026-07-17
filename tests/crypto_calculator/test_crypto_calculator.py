@@ -19,6 +19,7 @@ from crypto_calculator.crypto_calculator import (
     [
         ("2 * 2 BNB", Decimal("4"), "BNB"),
         ("2 * 2k BNB", Decimal("4000"), "BNB"),
+        ("2 * 2kk BNB", Decimal("4000000"), "BNB"),
         ("2х2k BNB", Decimal("4000"), "BNB"),
     ],
 )
