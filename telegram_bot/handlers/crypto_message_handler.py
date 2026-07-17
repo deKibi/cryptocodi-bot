@@ -423,6 +423,10 @@ def format_fiat_to_crypto_response(
     usd_amount = _format_decimal(conversion.usd_amount)
     crypto_amount = _format_reverse_crypto_amount(conversion)
     ticker = html.escape(conversion.crypto_conversion.ticker)
+    approximation_note = get_message(
+        "fiat_to_crypto_approximation_note",
+        language=language,
+    )
 
     return get_message(
         "fiat_to_crypto_response",
@@ -430,6 +434,7 @@ def format_fiat_to_crypto_response(
         usd_amount=usd_amount,
         ticker=ticker,
         crypto_amount=crypto_amount,
+        approximation_note=approximation_note,
     )
 
 
