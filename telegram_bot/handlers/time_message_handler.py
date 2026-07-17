@@ -7,10 +7,10 @@ from datetime import datetime
 # Third-party Libraries
 from telegram import Update
 from telegram.constants import ParseMode
+from telegram.error import TelegramError
 from telegram.ext import ContextTypes
 
 # Custom Modules
-from config import MAX_TIME_MATCHES_PER_MESSAGE
 from time_converter.time_utils import convert_to_timezone
 from time_converter.utc_time_parser import ParsedTime, parse_times_from_text
 from telegram_bot.localization.language_preferences import (
@@ -19,9 +19,11 @@ from telegram_bot.localization.language_preferences import (
 )
 from telegram_bot.localization.messages import get_message
 from telegram_bot.state.message_reply_tracker import (
+    forget_related_reply_message_id,
     get_related_reply_message_id,
     remember_related_reply_message_id,
 )
+from telegram_bot.settings.group_settings import get_effective_chat_settings
 from telegram_bot.state.message_signature_tracker import (
     forget_message_signature,
     is_message_signature_unchanged,
@@ -169,6 +171,47 @@ def format_time_response(
     )
 
 
+async def _cleanup_tracked_time_response(
+    context: ContextTypes.DEFAULT_TYPE,
+    chat_id: int,
+    source_message_id: int,
+) -> None:
+    related_reply_message_id = get_related_reply_message_id(
+        context.bot_data,
+        TIME_MESSAGE_FEATURE,
+        chat_id,
+        source_message_id,
+    )
+
+    if related_reply_message_id is not None:
+        try:
+            await context.bot.delete_message(
+                chat_id=chat_id,
+                message_id=related_reply_message_id,
+            )
+        except TelegramError as error:
+            LOGGER.warning(
+                "Stale time response deletion failed: %s | "
+                "chat_id=%s, source_message_id=%s",
+                error,
+                chat_id,
+                source_message_id,
+            )
+
+    forget_related_reply_message_id(
+        context.bot_data,
+        TIME_MESSAGE_FEATURE,
+        chat_id,
+        source_message_id,
+    )
+    forget_message_signature(
+        context.bot_data,
+        TIME_MESSAGE_FEATURE,
+        chat_id,
+        source_message_id,
+    )
+
+
 async def handle_time_message(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
@@ -184,14 +227,25 @@ async def handle_time_message(
     if message_text is None:
         return
 
-    parsed_times = parse_times_from_text(
-        message_text,
-        limit=MAX_TIME_MATCHES_PER_MESSAGE,
-    )
     chat = update.effective_chat
 
     if chat is None:
         return
+
+    settings = get_effective_chat_settings(chat.id, chat.type)
+
+    if not settings.time_converter_enabled:
+        await _cleanup_tracked_time_response(
+            context,
+            chat.id,
+            message.message_id,
+        )
+        return
+
+    parsed_times = parse_times_from_text(
+        message_text,
+        limit=settings.max_time_matches_per_message,
+    )
 
     if not parsed_times:
         forget_message_signature(

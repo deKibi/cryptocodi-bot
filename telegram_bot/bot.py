@@ -65,6 +65,19 @@ from telegram_bot.handlers.language_callback_handler import (
     handle_language_command,
     handle_set_language_callback,
 )
+from telegram_bot.handlers.settings_command_handler import (
+    DELETE_SETTINGS_CALLBACK_PATTERN,
+    SETTINGS_HOME_CALLBACK_PATTERN,
+    SETTINGS_LIMIT_MENU_CALLBACK_PATTERN,
+    SETTINGS_SET_LIMIT_CALLBACK_PATTERN,
+    SETTINGS_TOGGLE_CALLBACK_PATTERN,
+    handle_delete_settings_callback,
+    handle_settings_command,
+    handle_settings_home_callback,
+    handle_settings_limit_menu_callback,
+    handle_settings_set_limit_callback,
+    handle_settings_toggle_callback,
+)
 from telegram_bot.handlers.time_message_handler import handle_time_message
 from telegram_bot.keyboards.crypto_conversion_keyboard import (
     DELETE_CRYPTO_RESPONSE_CALLBACK,
@@ -101,6 +114,7 @@ BOT_COMMANDS = [
     BotCommand("help", get_message("command_help")),
     BotCommand("id", get_message("command_id")),
     BotCommand("language", get_message("command_language")),
+    BotCommand("settings", get_message("command_settings")),
 ]
 
 
@@ -338,6 +352,13 @@ def create_application() -> Application:
         )
     )
     application.add_handler(
+        CommandHandler(
+            "settings",
+            handle_settings_command,
+            filters=supported_chats,
+        )
+    )
+    application.add_handler(
         CallbackQueryHandler(
             handle_change_language_callback,
             pattern=CHANGE_LANGUAGE_CALLBACK_PATTERN,
@@ -353,6 +374,36 @@ def create_application() -> Application:
         CallbackQueryHandler(
             handle_set_language_callback,
             pattern=SET_LANGUAGE_CALLBACK_PATTERN,
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            handle_settings_home_callback,
+            pattern=SETTINGS_HOME_CALLBACK_PATTERN,
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            handle_settings_toggle_callback,
+            pattern=SETTINGS_TOGGLE_CALLBACK_PATTERN,
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            handle_settings_limit_menu_callback,
+            pattern=SETTINGS_LIMIT_MENU_CALLBACK_PATTERN,
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            handle_settings_set_limit_callback,
+            pattern=SETTINGS_SET_LIMIT_CALLBACK_PATTERN,
+        )
+    )
+    application.add_handler(
+        CallbackQueryHandler(
+            handle_delete_settings_callback,
+            pattern=DELETE_SETTINGS_CALLBACK_PATTERN,
         )
     )
     application.add_handler(

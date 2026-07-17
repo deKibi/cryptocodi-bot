@@ -58,6 +58,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
                 "<code>/id</code> — переглянути ID чату й користувача або "
                 "приблизну дату створення за ID",
                 "<code>/language</code> — змінити мову бота",
+                "<code>/settings</code> — налаштувати бота в групі",
                 "",
                 "Автор: @deKibi",
                 "Канал: @cryptocodi",
@@ -113,6 +114,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
                 "<code>/id</code> — view chat and user IDs or estimate an "
                 "account creation date by ID",
                 "<code>/language</code> — change the bot language",
+                "<code>/settings</code> — configure the bot in a group",
                 "",
                 "Author: @deKibi",
                 "Channel: @cryptocodi",
@@ -171,6 +173,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
                 "<code>/id</code> — посмотреть ID чата и пользователя или "
                 "примерную дату создания по ID",
                 "<code>/language</code> — изменить язык бота",
+                "<code>/settings</code> — настроить бота в группе",
                 "",
                 "Автор: @deKibi",
                 "Канал: @cryptocodi",
@@ -185,6 +188,7 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
     "command_help": {"en": "Show bot help and usage examples"},
     "command_id": {"en": "Show IDs or estimate account creation date"},
     "command_language": {"en": "Change bot language"},
+    "command_settings": {"en": "Configure bot settings for this group"},
     "calculation_error": {
         "uk": "Не вдалося обчислити вираз.",
         "en": "Could not calculate the expression.",
@@ -434,6 +438,73 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
     "coin_chart_button": {"en": "📈 {coin_name}"},
     "change_language_button": {"en": "Change Language"},
     "invite_bot_button": {"en": "➕ Add bot to your chat"},
+    "settings_button": {"en": "Settings"},
+    "settings_private_only_groups": {
+        "uk": "Налаштування доступні лише в групових чатах.",
+        "en": "Settings are available only in group chats.",
+        "ru": "Настройки доступны только в групповых чатах.",
+    },
+    "settings_admin_only": {
+        "uk": (
+            "Лише адміністратори групи можуть змінювати налаштування бота "
+            "в цьому чаті."
+        ),
+        "en": (
+            "Only group admins can change the bot settings in this chat."
+        ),
+        "ru": (
+            "Только администраторы группы могут изменять настройки бота "
+            "в этом чате."
+        ),
+    },
+    "settings_home": {
+        "uk": (
+            "<b>Налаштування бота</b>\n\n"
+            "Crypto converter: {crypto_status}\n"
+            "Calculator: {calculator_status}\n"
+            "Time converter: {time_status}\n"
+            "Max crypto conversions per message: {max_crypto}\n"
+            "Max time conversions per message: {max_time}"
+        ),
+        "en": (
+            "<b>Bot settings</b>\n\n"
+            "Crypto converter: {crypto_status}\n"
+            "Calculator: {calculator_status}\n"
+            "Time converter: {time_status}\n"
+            "Max crypto conversions per message: {max_crypto}\n"
+            "Max time conversions per message: {max_time}"
+        ),
+        "ru": (
+            "<b>Настройки бота</b>\n\n"
+            "Crypto converter: {crypto_status}\n"
+            "Calculator: {calculator_status}\n"
+            "Time converter: {time_status}\n"
+            "Max crypto conversions per message: {max_crypto}\n"
+            "Max time conversions per message: {max_time}"
+        ),
+    },
+    "settings_limit_menu": {
+        "uk": "Оберіть значення для {setting_name}:",
+        "en": "Choose value for {setting_name}:",
+        "ru": "Выберите значение для {setting_name}:",
+    },
+    "settings_status_enabled": {
+        "uk": "увімкнено",
+        "en": "enabled",
+        "ru": "включено",
+    },
+    "settings_status_disabled": {
+        "uk": "вимкнено",
+        "en": "disabled",
+        "ru": "выключено",
+    },
+    "settings_enabled_button": {"en": "enabled"},
+    "settings_disabled_button": {"en": "disabled"},
+    "settings_crypto_button": {"en": "Crypto converter"},
+    "settings_calculator_button": {"en": "Calculator"},
+    "settings_time_button": {"en": "Time converter"},
+    "settings_max_crypto_button": {"en": "Max crypto"},
+    "settings_max_time_button": {"en": "Max time"},
     "language_back_button": {"en": "Back"},
     "choose_language": {
         "uk": "Оберіть мову:",
