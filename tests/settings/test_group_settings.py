@@ -59,6 +59,82 @@ def test_get_group_settings_caches_defaults_when_absent(
     storage.get_settings.assert_called_once_with(-100)
 
 
+def test_update_group_setting_skips_write_when_read_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    storage = Mock()
+    storage.get_settings.side_effect = sqlite3.OperationalError("locked")
+    group_settings._group_settings_cache.clear()
+    monkeypatch.setattr(
+        group_settings,
+        "_get_group_settings_storage",
+        lambda: storage,
+    )
+
+    updated_settings = group_settings.update_group_setting(
+        -100,
+        "calculator_enabled",
+        False,
+    )
+
+    assert updated_settings is None
+    storage.save_feature_settings.assert_not_called()
+    assert -100 not in group_settings._group_settings_cache
+
+
+def test_update_group_setting_uses_cached_settings_without_read(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    storage = Mock()
+    cached_settings = GroupSettings(calculator_enabled=True)
+    group_settings._group_settings_cache.clear()
+    group_settings._group_settings_cache[-100] = cached_settings
+    monkeypatch.setattr(
+        group_settings,
+        "_get_group_settings_storage",
+        lambda: storage,
+    )
+
+    updated_settings = group_settings.update_group_setting(
+        -100,
+        "calculator_enabled",
+        False,
+    )
+
+    assert updated_settings == GroupSettings(calculator_enabled=False)
+    storage.get_settings.assert_not_called()
+    storage.save_feature_settings.assert_called_once_with(
+        -100,
+        GroupSettings(calculator_enabled=False),
+    )
+
+
+def test_save_failure_does_not_replace_cached_settings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    storage = Mock()
+    storage.save_feature_settings.side_effect = sqlite3.OperationalError(
+        "locked"
+    )
+    cached_settings = GroupSettings(calculator_enabled=True)
+    group_settings._group_settings_cache.clear()
+    group_settings._group_settings_cache[-100] = cached_settings
+    monkeypatch.setattr(
+        group_settings,
+        "_get_group_settings_storage",
+        lambda: storage,
+    )
+
+    updated_settings = group_settings.update_group_setting(
+        -100,
+        "calculator_enabled",
+        False,
+    )
+
+    assert updated_settings is None
+    assert group_settings._group_settings_cache[-100] == cached_settings
+
+
 def test_update_group_setting_replaces_cached_defaults(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

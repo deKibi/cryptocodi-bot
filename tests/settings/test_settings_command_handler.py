@@ -205,3 +205,107 @@ def test_settings_default_limit_callback_resets_crypto_limit(
         None,
     )
     update.callback_query.answer.assert_awaited_once_with()
+
+
+def test_settings_toggle_callback_reports_save_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    update = FakeCallbackUpdate("settings_toggle:-100:calculator")
+    context = FakeContext()
+    monkeypatch.setattr(
+        settings_command_handler,
+        "_can_manage_settings",
+        AsyncMock(return_value=True),
+    )
+    monkeypatch.setattr(
+        settings_command_handler,
+        "resolve_context_language",
+        lambda *args: "en",
+    )
+    monkeypatch.setattr(
+        settings_command_handler,
+        "get_group_settings",
+        lambda chat_id: GroupSettings(calculator_enabled=True),
+    )
+    monkeypatch.setattr(
+        settings_command_handler,
+        "update_group_setting",
+        Mock(return_value=None),
+    )
+
+    asyncio.run(
+        settings_command_handler.handle_settings_toggle_callback(
+            update,
+            context,
+        )
+    )
+
+    update.callback_query.answer.assert_awaited_once_with(
+        text=get_message("settings_save_failed", language="en"),
+    )
+
+
+def test_settings_set_limit_callback_reports_save_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    update = FakeCallbackUpdate("settings_set_limit:-100:crypto:3")
+    context = FakeContext()
+    monkeypatch.setattr(
+        settings_command_handler,
+        "_can_manage_settings",
+        AsyncMock(return_value=True),
+    )
+    monkeypatch.setattr(
+        settings_command_handler,
+        "resolve_context_language",
+        lambda *args: "en",
+    )
+    monkeypatch.setattr(
+        settings_command_handler,
+        "update_group_setting",
+        Mock(return_value=None),
+    )
+
+    asyncio.run(
+        settings_command_handler.handle_settings_set_limit_callback(
+            update,
+            context,
+        )
+    )
+
+    update.callback_query.answer.assert_awaited_once_with(
+        text=get_message("settings_save_failed", language="en"),
+    )
+
+
+def test_settings_default_limit_callback_reports_save_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    update = FakeCallbackUpdate("settings_default_limit:-100:time")
+    context = FakeContext()
+    monkeypatch.setattr(
+        settings_command_handler,
+        "_can_manage_settings",
+        AsyncMock(return_value=True),
+    )
+    monkeypatch.setattr(
+        settings_command_handler,
+        "resolve_context_language",
+        lambda *args: "en",
+    )
+    monkeypatch.setattr(
+        settings_command_handler,
+        "update_group_setting",
+        Mock(return_value=None),
+    )
+
+    asyncio.run(
+        settings_command_handler.handle_settings_default_limit_callback(
+            update,
+            context,
+        )
+    )
+
+    update.callback_query.answer.assert_awaited_once_with(
+        text=get_message("settings_save_failed", language="en"),
+    )

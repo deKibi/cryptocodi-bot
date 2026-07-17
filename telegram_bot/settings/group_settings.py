@@ -336,6 +336,33 @@ def get_group_settings(chat_id: int) -> GroupSettings:
     return stored_settings
 
 
+def _get_group_settings_for_update(chat_id: int) -> Optional[GroupSettings]:
+    """Return current settings for a write operation, or None on read error."""
+    cached_settings = _group_settings_cache.get(chat_id)
+
+    if cached_settings is not None:
+        _group_settings_cache.move_to_end(chat_id)
+        return cached_settings
+
+    try:
+        stored_settings = _get_group_settings_storage().get_settings(chat_id)
+    except (OSError, sqlite3.Error):
+        LOGGER.exception(
+            "Failed to read group settings for update; "
+            "skipping update | chat_id=%s",
+            chat_id,
+        )
+        return None
+
+    if stored_settings is None:
+        default_settings = get_default_group_settings()
+        _remember_group_settings(chat_id, default_settings)
+        return default_settings
+
+    _remember_group_settings(chat_id, stored_settings)
+    return stored_settings
+
+
 def get_effective_chat_settings(
     chat_id: Optional[int],
     chat_type: object,
@@ -403,9 +430,7 @@ def _set_limit_override(
         return None
 
     _group_settings_cache.pop(chat_id, None)
-    updated_settings = get_group_settings(chat_id)
-    _remember_group_settings(chat_id, updated_settings)
-    return updated_settings
+    return _get_group_settings_for_update(chat_id)
 
 
 def _delete_limit_override(
@@ -427,9 +452,7 @@ def _delete_limit_override(
         return None
 
     _group_settings_cache.pop(chat_id, None)
-    updated_settings = get_group_settings(chat_id)
-    _remember_group_settings(chat_id, updated_settings)
-    return updated_settings
+    return _get_group_settings_for_update(chat_id)
 
 
 def update_group_setting(
@@ -438,7 +461,10 @@ def update_group_setting(
     value: bool | int | None,
 ) -> Optional[GroupSettings]:
     """Update one group setting and return the effective saved settings."""
-    current_settings = get_group_settings(chat_id)
+    current_settings = _get_group_settings_for_update(chat_id)
+
+    if current_settings is None:
+        return None
 
     if setting_name == "crypto_converter_enabled":
         return _save_feature_settings(

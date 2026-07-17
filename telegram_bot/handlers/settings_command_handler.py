@@ -6,7 +6,7 @@ import re
 from typing import Final, Optional
 
 # Third-party Libraries
-from telegram import Message, Update
+from telegram import CallbackQuery, Message, Update
 from telegram.constants import ChatMemberStatus, ChatType, ParseMode
 from telegram.error import TelegramError
 from telegram.ext import ContextTypes
@@ -257,6 +257,15 @@ async def _edit_to_settings_home(
     )
 
 
+async def _answer_settings_save_failed(
+    callback_query: CallbackQuery,
+    language: str,
+) -> None:
+    await callback_query.answer(
+        text=get_message("settings_save_failed", language=language),
+    )
+
+
 async def handle_settings_command(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
@@ -434,7 +443,16 @@ async def handle_settings_toggle_callback(
     setting_name = setting_names[feature]
     current_settings = get_group_settings(chat_id)
     current_value = getattr(current_settings, setting_name)
-    update_group_setting(chat_id, setting_name, not current_value)
+    updated_settings = update_group_setting(
+        chat_id,
+        setting_name,
+        not current_value,
+    )
+
+    if updated_settings is None:
+        await _answer_settings_save_failed(callback_query, language)
+        return
+
     await callback_query.answer()
 
     if isinstance(callback_query.message, Message):
@@ -543,7 +561,7 @@ async def handle_settings_set_limit_callback(
         )
         return
 
-    update_group_setting(
+    updated_settings = update_group_setting(
         chat_id,
         (
             "max_crypto_pairs_per_message"
@@ -552,6 +570,11 @@ async def handle_settings_set_limit_callback(
         ),
         limit,
     )
+
+    if updated_settings is None:
+        await _answer_settings_save_failed(callback_query, language)
+        return
+
     await callback_query.answer()
 
     if isinstance(callback_query.message, Message):
@@ -592,7 +615,7 @@ async def handle_settings_default_limit_callback(
         )
         return
 
-    update_group_setting(
+    updated_settings = update_group_setting(
         chat_id,
         (
             "max_crypto_pairs_per_message"
@@ -601,6 +624,11 @@ async def handle_settings_default_limit_callback(
         ),
         None,
     )
+
+    if updated_settings is None:
+        await _answer_settings_save_failed(callback_query, language)
+        return
+
     await callback_query.answer()
 
     if isinstance(callback_query.message, Message):

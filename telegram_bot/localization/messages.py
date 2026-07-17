@@ -457,6 +457,11 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
             "в этом чате."
         ),
     },
+    "settings_save_failed": {
+        "uk": "Не вдалося зберегти налаштування. Спробуйте ще раз.",
+        "en": "Failed to save settings. Please try again.",
+        "ru": "Не удалось сохранить настройки. Попробуйте ещё раз.",
+    },
     "settings_home": {
         "uk": (
             "<b>Налаштування бота</b>\n\n"
