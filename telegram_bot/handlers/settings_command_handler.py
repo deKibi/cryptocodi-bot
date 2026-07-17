@@ -32,6 +32,9 @@ from telegram_bot.localization.language_preferences import (
 )
 from telegram_bot.localization.messages import get_message
 from telegram_bot.logging_config import format_log_metadata, get_update_metadata
+from telegram_bot.services.temporary_message_service import (
+    send_temporary_message,
+)
 from telegram_bot.settings.group_settings import (
     ALLOWED_MESSAGE_LIMITS,
     GroupSettings,
@@ -268,9 +271,13 @@ async def handle_settings_command(
         return
 
     if not await _can_manage_settings(update, context, chat.id):
-        await message.reply_text(
+        await send_temporary_message(
+            message,
+            context,
             text=get_message("settings_admin_only", language=language),
-            do_quote=True,
+            update=update,
+            log_label="Temporary settings notice",
+            task_name="delete-non-admin-settings-notice",
         )
         LOGGER.warning(
             "Settings command denied | chat_id=%s, user_id=%s",

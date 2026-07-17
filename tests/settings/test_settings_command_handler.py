@@ -54,6 +54,7 @@ class FakeUpdate:
 class FakeContext:
     def __init__(self) -> None:
         self.bot = AsyncMock()
+        self.application = AsyncMock()
 
 
 def test_settings_command_in_private_chat_returns_unavailable_message(
@@ -67,6 +68,12 @@ def test_settings_command_in_private_chat_returns_unavailable_message(
         "resolve_context_language",
         lambda *args: "en",
     )
+    send_temporary_message = AsyncMock()
+    monkeypatch.setattr(
+        settings_command_handler,
+        "send_temporary_message",
+        send_temporary_message,
+    )
 
     asyncio.run(
         settings_command_handler.handle_settings_command(update, context)
@@ -76,6 +83,7 @@ def test_settings_command_in_private_chat_returns_unavailable_message(
         text=get_message("settings_private_only_groups", language="en"),
         do_quote=True,
     )
+    send_temporary_message.assert_not_awaited()
 
 
 def test_settings_command_denies_group_non_admin(
@@ -89,14 +97,25 @@ def test_settings_command_denies_group_non_admin(
         "resolve_context_language",
         lambda *args: "en",
     )
+    send_temporary_message = AsyncMock()
+    monkeypatch.setattr(
+        settings_command_handler,
+        "send_temporary_message",
+        send_temporary_message,
+    )
 
     asyncio.run(
         settings_command_handler.handle_settings_command(update, context)
     )
 
-    update.effective_message.reply_text.assert_awaited_once_with(
+    update.effective_message.reply_text.assert_not_called()
+    send_temporary_message.assert_awaited_once_with(
+        update.effective_message,
+        context,
         text=get_message("settings_admin_only", language="en"),
-        do_quote=True,
+        update=update,
+        log_label="Temporary settings notice",
+        task_name="delete-non-admin-settings-notice",
     )
 
 
