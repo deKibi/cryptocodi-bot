@@ -35,6 +35,9 @@ from crypto_converter.fiat_to_crypto_parser import (
         ("10$ $BNB", Decimal("10"), "BNB"),
         ("10$ bNb", Decimal("10"), "BNB"),
         ("10$ USDT", Decimal("10"), "USDT"),
+        ("10$ EUR", Decimal("10"), "EUR"),
+        ("10$ UAH", Decimal("10"), "UAH"),
+        ("10$ PLN", Decimal("10"), "PLN"),
     ],
 )
 def test_parse_fiat_to_crypto_conversion(
@@ -91,6 +94,7 @@ def test_parse_low_fiat_to_crypto_amount(
         "10$ USD",
         "0$ в BNB",
         "text $0.09 BNB text",
+        "text 10$ EUR text",
         "-10$ BNB",
         "10$",
     ],

@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 
 # Custom Modules
+from crypto_converter.coin_ticker_resolver import ResolvedCoin
 from telegram_bot.handlers import crypto_message_handler
 from telegram_bot.localization.messages import get_message
 
@@ -99,4 +100,58 @@ def test_low_fiat_to_crypto_amount_replies_without_coin_resolution(
         do_quote=True,
     )
     resolve_coin.assert_not_called()
+    acquire_conversion_attempt.assert_not_called()
+
+
+def test_fiat_to_crypto_fiat_target_replies_without_conversion(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    update = FakeUpdate("10$ EUR")
+    context = FakeContext()
+    resolve_coin = Mock(return_value=ResolvedCoin("tether", "EUR", "Euro"))
+    convert_fiat_to_resolved_crypto = Mock(
+        side_effect=AssertionError(
+            "fiat target should not be converted as crypto"
+        )
+    )
+    acquire_conversion_attempt = Mock(
+        side_effect=AssertionError(
+            "conversion limit should not be acquired"
+        )
+    )
+
+    monkeypatch.setattr(
+        crypto_message_handler,
+        "resolve_context_language",
+        lambda *args: "en",
+    )
+    monkeypatch.setattr(
+        crypto_message_handler,
+        "resolve_coin",
+        resolve_coin,
+    )
+    monkeypatch.setattr(
+        crypto_message_handler,
+        "convert_fiat_to_resolved_crypto",
+        convert_fiat_to_resolved_crypto,
+    )
+    monkeypatch.setattr(
+        crypto_message_handler.crypto_usage_limiter,
+        "try_acquire_conversion_attempt",
+        acquire_conversion_attempt,
+    )
+
+    asyncio.run(
+        crypto_message_handler.handle_crypto_message(update, context)
+    )
+
+    update.effective_message.reply_text.assert_awaited_once_with(
+        text=get_message(
+            "fiat_to_crypto_target_must_be_crypto",
+            language="en",
+        ),
+        do_quote=True,
+    )
+    resolve_coin.assert_called_once_with("EUR")
+    convert_fiat_to_resolved_crypto.assert_not_called()
     acquire_conversion_attempt.assert_not_called()

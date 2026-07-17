@@ -260,6 +260,18 @@ MESSAGES: Final[dict[str, dict[str, str]]] = {
             "$0.10."
         ),
     },
+    "fiat_to_crypto_target_must_be_crypto": {
+        "uk": (
+            "Конвертація з доларів підтримує тільки криптовалюти як ціль."
+        ),
+        "en": (
+            "USD-to-crypto conversion supports cryptocurrency targets only."
+        ),
+        "ru": (
+            "Конвертация из долларов поддерживает только криптовалюты как "
+            "цель."
+        ),
+    },
     "time_response": {
         "uk": (
             "<code>{conversion_blocks}</code>\n\n"
