@@ -8,7 +8,7 @@ from decimal import Decimal
 from typing import Final, Optional
 
 # Custom Modules
-from calculator.compact_number_normalizer import (
+from common.compact_number_normalizer import (
     COMPACT_NUMBER_MULTIPLIERS,
     COMPACT_NUMBER_SUFFIX_REGEX,
     NUMBER_LITERAL_REGEX,
@@ -24,14 +24,14 @@ from crypto_converter.coin_ticker_resolver import (
 # Crypto amount pattern
 CRYPTO_AMOUNT_PATTERN: Final[re.Pattern[str]] = re.compile(
     rf"(?<![\w.,:-])(?P<amount>{NUMBER_LITERAL_REGEX})"
-    rf"(?P<multiplier>[{COMPACT_NUMBER_SUFFIX_REGEX}])?\s+"
+    rf"(?P<multiplier>{COMPACT_NUMBER_SUFFIX_REGEX})?\s+"
     r"(?P<dollar>\$)?"
     r"(?P<ticker>(?:(?<=[\s$])[A-Za-z]|[A-Za-z]{2,10}))(?!\w)",
     flags=re.IGNORECASE,
 )
 CRYPTO_AMOUNT_PREFIX_PATTERN: Final[re.Pattern[str]] = re.compile(
     rf"(?<![\w.,:-])(?P<amount>{NUMBER_LITERAL_REGEX})"
-    rf"(?P<multiplier>[{COMPACT_NUMBER_SUFFIX_REGEX}])?\s+",
+    rf"(?P<multiplier>{COMPACT_NUMBER_SUFFIX_REGEX})?\s+",
     flags=re.IGNORECASE,
 )
 TIMEZONE_OFFSET_PREFIX_PATTERN: Final[re.Pattern[str]] = re.compile(

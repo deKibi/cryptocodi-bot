@@ -6,7 +6,7 @@ import re
 from typing import Final, Optional
 
 # Custom Modules
-from calculator.compact_number_normalizer import (
+from common.compact_number_normalizer import (
     COMPACT_NUMBER_PATTERN,
     expand_compact_numbers,
     normalize_number_separators,

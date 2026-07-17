@@ -14,6 +14,8 @@ from calculator.expression_parser import parse_expression
         ("10 - 3", "10 - 3"),
         ("2х5", "2*5"),
         ("2×5", "2*5"),
+        ("1kk+1", "(1*1000000)+1"),
+        ("1k+1", "(1*1000)+1"),
     ],
 )
 def test_parse_valid_expressions(text: str, expected: str) -> None:
