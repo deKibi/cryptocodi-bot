@@ -8,7 +8,7 @@ from decimal import Decimal
 from typing import Final, Optional
 
 # Custom Modules
-from calculator.compact_number_normalizer import (
+from common.compact_number_normalizer import (
     COMPACT_NUMBER_MULTIPLIERS,
     COMPACT_NUMBER_SUFFIX_REGEX,
     NUMBER_LITERAL_REGEX,

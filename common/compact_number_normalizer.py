@@ -1,4 +1,4 @@
-# calculator/compact_number_normalizer.py
+# common/compact_number_normalizer.py
 
 # Standard Libraries
 import re
