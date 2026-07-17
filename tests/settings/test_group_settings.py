@@ -38,7 +38,7 @@ def test_get_group_settings_returns_defaults_when_absent(
     assert settings == group_settings.get_default_group_settings()
 
 
-def test_save_group_settings_persists_values(
+def test_save_group_settings_persists_feature_flags_and_limit_overrides(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -49,8 +49,6 @@ def test_save_group_settings_persists_values(
         time_converter_enabled=True,
         max_crypto_pairs_per_message=3,
         max_time_matches_per_message=1,
-        max_crypto_pairs_per_message_override=3,
-        max_time_matches_per_message_override=1,
     )
 
     assert group_settings.save_group_settings(-100, saved_settings)
@@ -59,14 +57,11 @@ def test_save_group_settings_persists_values(
     assert group_settings.get_group_settings(-100) == saved_settings
 
 
-def test_save_group_settings_rejects_unsupported_limits(
+def test_save_group_settings_rejects_unsupported_limit_override(
     tmp_path: Path,
 ) -> None:
     storage = GroupSettingsStorage(tmp_path / "settings.sqlite3")
-    invalid_settings = GroupSettings(
-        max_crypto_pairs_per_message=2,
-        max_crypto_pairs_per_message_override=2,
-    )
+    invalid_settings = GroupSettings(max_crypto_pairs_per_message=2)
 
     with pytest.raises(ValueError):
         storage.save_settings(-100, invalid_settings)
@@ -107,74 +102,59 @@ def test_reset_crypto_limit_uses_default_without_changing_time_override(
     assert updated_settings == GroupSettings(
         max_crypto_pairs_per_message=10,
         max_time_matches_per_message=3,
-        max_crypto_pairs_per_message_override=None,
-        max_time_matches_per_message_override=3,
     )
 
 
-def test_storage_migrates_old_not_null_limit_schema(
+def test_feature_toggle_does_not_remove_limit_overrides(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    _use_temporary_storage(monkeypatch, tmp_path / "settings.sqlite3")
+    group_settings.update_group_setting(
+        -100,
+        "max_crypto_pairs_per_message",
+        1,
+    )
+    group_settings.update_group_setting(
+        -100,
+        "max_time_matches_per_message",
+        3,
+    )
+
+    updated_settings = group_settings.update_group_setting(
+        -100,
+        "calculator_enabled",
+        False,
+    )
+
+    assert updated_settings == GroupSettings(
+        calculator_enabled=False,
+        max_crypto_pairs_per_message=1,
+        max_time_matches_per_message=3,
+    )
+
+
+def test_storage_uses_separate_not_null_limit_override_table(
     tmp_path: Path,
 ) -> None:
     database_path = tmp_path / "settings.sqlite3"
 
-    with sqlite3.connect(database_path) as connection:
-        connection.execute(
-            """
-            CREATE TABLE group_feature_settings (
-                chat_id INTEGER PRIMARY KEY,
-                crypto_converter_enabled INTEGER NOT NULL CHECK (
-                    crypto_converter_enabled IN (0, 1)
-                ),
-                calculator_enabled INTEGER NOT NULL CHECK (
-                    calculator_enabled IN (0, 1)
-                ),
-                time_converter_enabled INTEGER NOT NULL CHECK (
-                    time_converter_enabled IN (0, 1)
-                ),
-                max_crypto_pairs_per_message INTEGER NOT NULL CHECK (
-                    max_crypto_pairs_per_message IN (1, 3, 5)
-                ),
-                max_time_matches_per_message INTEGER NOT NULL CHECK (
-                    max_time_matches_per_message IN (1, 3, 5)
-                )
-            )
-            """
-        )
-        connection.execute(
-            """
-            INSERT INTO group_feature_settings (
-                chat_id,
-                crypto_converter_enabled,
-                calculator_enabled,
-                time_converter_enabled,
-                max_crypto_pairs_per_message,
-                max_time_matches_per_message
-            )
-            VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            (-100, 1, 0, 1, 3, 5),
-        )
-
-    storage = GroupSettingsStorage(database_path)
-    settings = storage.get_settings(-100)
-
-    assert settings == GroupSettings(
-        crypto_converter_enabled=True,
-        calculator_enabled=False,
-        time_converter_enabled=True,
-        max_crypto_pairs_per_message=3,
-        max_time_matches_per_message=5,
-        max_crypto_pairs_per_message_override=3,
-        max_time_matches_per_message_override=5,
-    )
+    GroupSettingsStorage(database_path)
 
     with sqlite3.connect(database_path) as connection:
-        columns = {
+        feature_columns = {
             str(row[1]): int(row[3])
             for row in connection.execute(
                 "PRAGMA table_info(group_feature_settings)"
             ).fetchall()
         }
+        override_columns = {
+            str(row[1]): int(row[3])
+            for row in connection.execute(
+                "PRAGMA table_info(group_limit_overrides)"
+            ).fetchall()
+        }
 
-    assert columns["max_crypto_pairs_per_message"] == 0
-    assert columns["max_time_matches_per_message"] == 0
+    assert "max_crypto_pairs_per_message" not in feature_columns
+    assert "max_time_matches_per_message" not in feature_columns
+    assert override_columns["limit_value"] == 1
