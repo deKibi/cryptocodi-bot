@@ -36,6 +36,14 @@ class CryptoPriceConversion:
     coin_name: str = ""
 
 
+@dataclass(frozen=True)
+class FiatToCryptoConversion:
+    """Represent a USD amount converted to a cryptocurrency amount."""
+
+    usd_amount: Decimal
+    crypto_conversion: CryptoPriceConversion
+
+
 def _calculate_cross_rate_24h_change(
     usd_24h_change: Optional[Decimal],
     source_24h_change: Optional[Decimal],
@@ -140,6 +148,45 @@ def convert_resolved_coin_to_fiat(
         total_uah=amount * unit_price.uah,
         usd_24h_change=unit_price.usd_24h_change,
         coin_name=resolved_coin.name,
+    )
+
+
+def convert_fiat_to_resolved_crypto(
+    usd_amount: Decimal,
+    resolved_coin: ResolvedCoin,
+) -> Optional[FiatToCryptoConversion]:
+    """Convert a USD amount to a resolved cryptocurrency amount."""
+    if usd_amount <= 0:
+        raise ValueError("usd_amount must be greater than zero")
+
+    if resolved_coin.ticker in FIAT_TICKERS:
+        return None
+
+    unit_conversion = convert_resolved_coin_to_fiat(
+        Decimal("1"),
+        resolved_coin,
+    )
+
+    if unit_conversion.unit_price_usd == 0:
+        raise CoinGeckoAPIError(
+            f"CoinGecko returned a zero {resolved_coin.ticker} USD price"
+        )
+
+    crypto_amount = usd_amount / unit_conversion.unit_price_usd
+
+    return FiatToCryptoConversion(
+        usd_amount=usd_amount,
+        crypto_conversion=CryptoPriceConversion(
+            amount=crypto_amount,
+            ticker=unit_conversion.ticker,
+            coin_id=unit_conversion.coin_id,
+            unit_price_usd=unit_conversion.unit_price_usd,
+            unit_price_uah=unit_conversion.unit_price_uah,
+            total_usd=usd_amount,
+            total_uah=crypto_amount * unit_conversion.unit_price_uah,
+            usd_24h_change=unit_conversion.usd_24h_change,
+            coin_name=unit_conversion.coin_name,
+        ),
     )
 
 

@@ -10,6 +10,8 @@ crypto community. Works in private messages and Telegram groups.
 - detects cryptocurrency and basic fiat currency amounts
   (USD, EUR, CAD, PLN, RUB, UAH) and approximately converts them to USD
   and UAH;
+- converts USD amounts to cryptocurrency amounts with formats such as
+  `10$ BNB` and `$10 BNB`;
 - supports tickers, full coin names, compact amounts with `k` (thousands)
   and `m` (millions) suffixes, and multiple crypto pairs in one message;
 - shows 24-hour price changes for one unit of cryptocurrency or a supported
@@ -48,6 +50,8 @@ Message examples:
 start 10:00 UTC, finish 12:00 CET
 Event starts at 10:00utc
 0.3 BNB
+10$ BNB
+$10 BNB
 25k USDT
 1m BNB
 Price: 0,34 ETH
